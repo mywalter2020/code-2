@@ -29,7 +29,25 @@ curl http://localhost:8080/healthz
 curl http://localhost:8080/abilities
 ```
 
-## 3. 创建商品运营任务（会进入待确认）
+## 3. 查看能力元信息
+
+```bash
+curl http://localhost:8080/abilities/metadata
+```
+
+## 4. 查看主控 Agent 元信息
+
+```bash
+curl http://localhost:8080/agents/metadata
+```
+
+## 5. 查看绑定关系
+
+```bash
+curl http://localhost:8080/bindings
+```
+
+## 6. 创建商品运营任务（会进入待确认）
 
 ```bash
 curl -X POST http://localhost:8080/execute \
@@ -43,43 +61,43 @@ curl -X POST http://localhost:8080/execute \
   }'
 ```
 
-## 4. 查看任务列表
+## 7. 查看任务列表
 
 ```bash
 curl http://localhost:8080/tasks
 ```
 
-## 5. 查看任务汇总
+## 8. 查看任务汇总
 
 ```bash
 curl http://localhost:8080/tasks/summary
 ```
 
-## 6. 查询任务详情
+## 9. 查询任务详情
 
 ```bash
 curl http://localhost:8080/tasks/task-000001
 ```
 
-## 7. 查看任务预览
+## 10. 查看任务预览
 
 ```bash
 curl http://localhost:8080/tasks/task-000001/preview
 ```
 
-## 8. 查看任务日志
+## 11. 查看任务日志
 
 ```bash
 curl http://localhost:8080/tasks/task-000001/logs
 ```
 
-## 9. 查看任务状态
+## 12. 查看任务状态
 
 ```bash
 curl http://localhost:8080/tasks/task-000001/status
 ```
 
-## 10. 确认任务继续执行
+## 13. 确认任务继续执行
 
 ```bash
 curl -X POST http://localhost:8080/tasks/task-000001/confirm \
@@ -90,7 +108,7 @@ curl -X POST http://localhost:8080/tasks/task-000001/confirm \
   }'
 ```
 
-## 11. 拒绝任务
+## 14. 拒绝任务
 
 ```bash
 curl -X POST http://localhost:8080/tasks/task-000001/confirm \
@@ -101,7 +119,7 @@ curl -X POST http://localhost:8080/tasks/task-000001/confirm \
   }'
 ```
 
-## 12. 模拟发布失败
+## 15. 模拟发布失败
 
 ```bash
 curl -X POST http://localhost:8080/execute \
@@ -116,7 +134,7 @@ curl -X POST http://localhost:8080/execute \
   }'
 ```
 
-## 13. 取消任务
+## 16. 取消任务
 
 ```bash
 curl -X POST http://localhost:8080/tasks/task-000001/cancel \
@@ -126,7 +144,7 @@ curl -X POST http://localhost:8080/tasks/task-000001/cancel \
   }'
 ```
 
-## 14. 重试任务
+## 17. 重试任务
 
 ```bash
 curl -X POST http://localhost:8080/tasks/task-000001/retry

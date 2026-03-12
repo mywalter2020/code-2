@@ -38,6 +38,12 @@
 ### `GET /abilities/metadata`
 查看能力元信息（描述、标签、版本等）
 
+### `GET /agents/metadata`
+查看主控 Agent 元信息
+
+### `GET /bindings`
+查看主控 Agent 与能力 / workflow 绑定关系
+
 ### `POST /execute`
 按场景触发大 Agent 编排执行
 

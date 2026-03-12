@@ -17,6 +17,18 @@ paths:
       responses:
         '200':
           description: OK
+  /agents/metadata:
+    get:
+      summary: Get master agent metadata
+      responses:
+        '200':
+          description: Master agent metadata
+  /bindings:
+    get:
+      summary: Get binding views
+      responses:
+        '200':
+          description: Binding metadata
   /execute:
     post:
       summary: Execute a scene task

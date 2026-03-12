@@ -14,16 +14,20 @@ type Server struct {
 	orc             *orchestrator.Orchestrator
 	rg              *registry.Registry
 	abilityMetadata []types.AbilityMetadata
+	masterMetadata  []types.MasterAgentMetadata
+	bindingViews    []types.BindingView
 }
 
-func New(orc *orchestrator.Orchestrator, rg *registry.Registry, abilityMetadata []types.AbilityMetadata) *Server {
-	return &Server{orc: orc, rg: rg, abilityMetadata: abilityMetadata}
+func New(orc *orchestrator.Orchestrator, rg *registry.Registry, abilityMetadata []types.AbilityMetadata, masterMetadata []types.MasterAgentMetadata, bindingViews []types.BindingView) *Server {
+	return &Server{orc: orc, rg: rg, abilityMetadata: abilityMetadata, masterMetadata: masterMetadata, bindingViews: bindingViews}
 }
 
 func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/healthz", s.handleHealth)
 	mux.HandleFunc("/abilities", s.handleAbilities)
 	mux.HandleFunc("/abilities/metadata", s.handleAbilityMetadata)
+	mux.HandleFunc("/agents/metadata", s.handleMasterMetadata)
+	mux.HandleFunc("/bindings", s.handleBindings)
 	mux.HandleFunc("/execute", s.handleExecute)
 	mux.HandleFunc("/tasks/summary", s.handleTaskSummary)
 	mux.HandleFunc("/tasks", s.handleTaskList)

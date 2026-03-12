@@ -23,6 +23,8 @@ func main() {
 
 	adapterRegistry := adapters.NewRegistry()
 	adapterRegistry.Register(adapters.NewAlibabaAdapter())
+	adapterRegistry.Register(adapters.NewTaobaoAdapter())
+	adapterRegistry.Register(adapters.NewDouyinAdapter())
 
 	rg := registry.New()
 	for _, ability := range cfg.AbilityAgents {
@@ -71,7 +73,13 @@ func main() {
 	}
 
 	orc := orchestrator.New(rt, rg, st, cfg.Bindings)
-	api := server.New(orc, rg, server.BuildAbilityMetadata(cfg.AbilityAgents))
+	api := server.New(
+		orc,
+		rg,
+		server.BuildAbilityMetadata(cfg.AbilityAgents),
+		server.BuildMasterMetadata(cfg.MasterAgents),
+		server.BuildBindingViews(cfg.Bindings),
+	)
 
 	mux := http.NewServeMux()
 	api.Register(mux)
