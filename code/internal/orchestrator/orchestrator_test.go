@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"juyu-ai-platform/internal/adapters"
 	"juyu-ai-platform/internal/agents"
 	"juyu-ai-platform/internal/registry"
 	"juyu-ai-platform/internal/router"
@@ -12,12 +13,15 @@ import (
 )
 
 func TestExecuteProductFlow(t *testing.T) {
+	adapterRegistry := adapters.NewRegistry()
+	adapterRegistry.Register(adapters.NewAlibabaAdapter())
+
 	rg := registry.New()
 	rg.Register(agents.NewContentAgent())
 	rg.Register(agents.NewPageAgent())
 	rg.Register(agents.NewReviewAgent())
-	rg.Register(agents.NewPublishAgent())
-	rg.Register(agents.NewOnShelfAgent())
+	rg.Register(agents.NewPublishAgent(adapterRegistry))
+	rg.Register(agents.NewOnShelfAgent(adapterRegistry))
 
 	rt := router.New([]types.MasterAgent{{Code: "product_ops", SceneType: "product", Enabled: true}})
 	st := store.NewMemoryStore()

@@ -3,18 +3,35 @@ package agents
 import (
 	"context"
 
+	"juyu-ai-platform/internal/adapters"
 	"juyu-ai-platform/internal/types"
 )
 
-type PublishAgent struct{}
+type PublishAgent struct {
+	adapters *adapters.Registry
+}
 
-func NewPublishAgent() *PublishAgent { return &PublishAgent{} }
-func (a *PublishAgent) Code() string { return "publish_exec" }
+func NewPublishAgent(registry *adapters.Registry) *PublishAgent { return &PublishAgent{adapters: registry} }
+func (a *PublishAgent) Code() string                            { return "publish_exec" }
 func (a *PublishAgent) Run(ctx context.Context, req types.Request) (types.Response, error) {
 	if req.Payload != nil {
 		if v, ok := req.Payload["simulate_error"].(bool); ok && v {
 			return types.Response{}, ErrSimulatedPublishFailure
 		}
+	}
+	platform := "alibaba"
+	if req.Payload != nil {
+		if p, ok := req.Payload["platform"].(string); ok && p != "" {
+			platform = p
+		}
+	}
+	adapter, err := a.adapters.Get(platform)
+	if err != nil {
+		return types.Response{}, err
+	}
+	result, err := adapter.Publish(ctx, req.Payload)
+	if err != nil {
+		return types.Response{}, err
 	}
 	return types.Response{
 		Agent:   a.Code(),
@@ -24,7 +41,9 @@ func (a *PublishAgent) Run(ctx context.Context, req types.Request) (types.Respon
 			"input":          req.Input,
 			"ability":        a.Code(),
 			"summary":        "发布执行完成",
-			"publish_status": "published",
+			"publish_status": result["status"],
+			"platform":       platform,
+			"adapter_result": result,
 		},
 	}, nil
 }

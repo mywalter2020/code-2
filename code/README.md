@@ -4,6 +4,7 @@
 
 - 多主控 Agent 路由
 - 多能力 Agent 注册中心
+- 平台 adapter 接口层（当前含 Alibaba stub）
 - 配置中心驱动绑定关系
 - workflow 顺序执行
 - 人工确认节点标记
@@ -22,6 +23,7 @@
 - `internal/orchestrator`：编排执行与任务流
 - `internal/store`：任务存储（当前为内存版）
 - `internal/agents`：能力 Agent 实现
+- `internal/adapters`：平台适配器接口与实现桩
 - `internal/server`：HTTP 接口层
 - `internal/types`：公共类型
 
@@ -32,6 +34,9 @@
 
 ### `GET /abilities`
 查看当前注册的小 Agent 能力列表
+
+### `GET /abilities/metadata`
+查看能力元信息（描述、标签、版本等）
 
 ### `POST /execute`
 按场景触发大 Agent 编排执行

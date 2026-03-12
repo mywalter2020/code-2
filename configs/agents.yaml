@@ -16,10 +16,16 @@ ability_agents:
   - code: content_gen
     name: 内容生成Agent
     type: llm
+    description: 根据输入任务生成结构化文案和内容草稿
+    tags: [content, llm]
+    version: v1
     enabled: true
   - code: page_gen
     name: 页面生成Agent
     type: render
+    description: 生成确认页或页面预览结构
+    tags: [preview, render]
+    version: v1
     enabled: true
   - code: review_check
     name: 审核确认Agent
@@ -28,10 +34,16 @@ ability_agents:
   - code: publish_exec
     name: 发布执行Agent
     type: executor
+    description: 通过平台适配器执行发布动作
+    tags: [publish, adapter]
+    version: v1
     enabled: true
   - code: onshelf_exec
     name: 上下架执行Agent
     type: executor
+    description: 通过平台适配器执行上下架动作
+    tags: [shelf, adapter]
+    version: v1
     enabled: true
   - code: image_gen
     name: 图像生成Agent

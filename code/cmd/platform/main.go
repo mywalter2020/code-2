@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"juyu-ai-platform/internal/adapters"
 	"juyu-ai-platform/internal/agents"
 	"juyu-ai-platform/internal/config"
 	"juyu-ai-platform/internal/orchestrator"
@@ -20,6 +21,9 @@ func main() {
 		log.Fatalf("load config failed: %v", err)
 	}
 
+	adapterRegistry := adapters.NewRegistry()
+	adapterRegistry.Register(adapters.NewAlibabaAdapter())
+
 	rg := registry.New()
 	for _, ability := range cfg.AbilityAgents {
 		if !ability.Enabled {
@@ -33,9 +37,9 @@ func main() {
 		case "review_check":
 			rg.Register(agents.NewReviewAgent())
 		case "publish_exec":
-			rg.Register(agents.NewPublishAgent())
+			rg.Register(agents.NewPublishAgent(adapterRegistry))
 		case "onshelf_exec":
-			rg.Register(agents.NewOnShelfAgent())
+			rg.Register(agents.NewOnShelfAgent(adapterRegistry))
 		default:
 			rg.Register(agents.NewGenericAgent(ability.Code, ability.Name))
 		}
@@ -67,7 +71,7 @@ func main() {
 	}
 
 	orc := orchestrator.New(rt, rg, st, cfg.Bindings)
-	api := server.New(orc, rg)
+	api := server.New(orc, rg, server.BuildAbilityMetadata(cfg.AbilityAgents))
 
 	mux := http.NewServeMux()
 	api.Register(mux)

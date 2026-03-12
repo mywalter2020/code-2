@@ -61,10 +61,13 @@ type MasterAgent struct {
 }
 
 type AbilityConfig struct {
-	Code    string `yaml:"code"`
-	Name    string `yaml:"name"`
-	Type    string `yaml:"type"`
-	Enabled bool   `yaml:"enabled"`
+	Code        string   `yaml:"code"`
+	Name        string   `yaml:"name"`
+	Type        string   `yaml:"type"`
+	Description string   `yaml:"description,omitempty"`
+	Tags        []string `yaml:"tags,omitempty"`
+	Version     string   `yaml:"version,omitempty"`
+	Enabled     bool     `yaml:"enabled"`
 }
 
 type WorkflowStep struct {
