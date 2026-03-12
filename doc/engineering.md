@@ -13,6 +13,7 @@ The repository now includes:
 - local Go toolchain support
 - Makefile / Dockerfile / docker-compose / .gitignore
 - memory / sqlite / postgres storage modes
+- docker-compose 联调已跑通（app + postgres）
 
 ## Suggested next steps
 

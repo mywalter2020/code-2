@@ -75,6 +75,13 @@ JUYU_CONFIG=/root/.openclaw/workspace/configs/agents.yaml \
 go run ./cmd/platform
 ```
 
+使用 Docker Compose 一键运行：
+
+```bash
+docker compose up --build -d
+curl http://127.0.0.1:8080/healthz
+```
+
 ## 当前说明
 
 当前实现还是原型版：
