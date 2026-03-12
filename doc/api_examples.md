@@ -19,7 +19,7 @@ curl http://localhost:8080/healthz
 curl http://localhost:8080/abilities
 ```
 
-## 3. 创建商品运营任务
+## 3. 创建商品运营任务（会进入待确认）
 
 ```bash
 curl -X POST http://localhost:8080/execute \
@@ -33,7 +33,7 @@ curl -X POST http://localhost:8080/execute \
   }'
 ```
 
-## 4. 查询任务
+## 4. 查询任务详情
 
 ```bash
 curl http://localhost:8080/tasks/task-000001
@@ -45,7 +45,8 @@ curl http://localhost:8080/tasks/task-000001
 curl -X POST http://localhost:8080/tasks/task-000001/confirm \
   -H 'Content-Type: application/json' \
   -d '{
-    "approved": true
+    "approved": true,
+    "comment": "页面内容确认无误，继续发布"
   }'
 ```
 
@@ -55,6 +56,22 @@ curl -X POST http://localhost:8080/tasks/task-000001/confirm \
 curl -X POST http://localhost:8080/tasks/task-000001/confirm \
   -H 'Content-Type: application/json' \
   -d '{
-    "approved": false
+    "approved": false,
+    "comment": "标题和卖点需要再调整"
+  }'
+```
+
+## 7. 模拟发布失败
+
+```bash
+curl -X POST http://localhost:8080/execute \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "scene": "product",
+    "input": "在阿里平台生成商品页面并准备上架",
+    "payload": {
+      "platform": "alibaba",
+      "simulate_error": true
+    }
   }'
 ```

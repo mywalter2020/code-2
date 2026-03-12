@@ -48,7 +48,13 @@ func (s *Server) handleExecute(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := s.orc.Execute(r.Context(), req)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]any{
+			"error":   err.Error(),
+			"task_id": resp.TaskID,
+			"status":  resp.Status,
+			"preview": resp.Preview,
+			"results": resp.Results,
+		})
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
@@ -79,9 +85,9 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 			return
 		}
-		task, err := s.orc.Confirm(r.Context(), taskID, req.Approved)
+		task, err := s.orc.Confirm(r.Context(), taskID, req.Approved, req.Comment)
 		if err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error(), "task": task})
 			return
 		}
 		writeJSON(w, http.StatusOK, task)

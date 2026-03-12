@@ -1,6 +1,9 @@
 package types
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type Request struct {
 	Scene   string         `json:"scene"`
@@ -19,11 +22,28 @@ type ExecuteResponse struct {
 	MasterAgent string     `json:"master_agent"`
 	Scene       string     `json:"scene"`
 	Status      string     `json:"status"`
+	Preview     *Preview   `json:"preview,omitempty"`
 	Results     []Response `json:"results"`
 }
 
 type ConfirmRequest struct {
-	Approved bool `json:"approved"`
+	Approved bool   `json:"approved"`
+	Comment  string `json:"comment,omitempty"`
+}
+
+type Preview struct {
+	Title   string         `json:"title"`
+	Summary string         `json:"summary"`
+	Fields  map[string]any `json:"fields"`
+}
+
+type TaskLog struct {
+	Time    time.Time      `json:"time"`
+	Step    int            `json:"step"`
+	Agent   string         `json:"agent"`
+	Action  string         `json:"action"`
+	Message string         `json:"message"`
+	Data    map[string]any `json:"data,omitempty"`
 }
 
 type AbilityAgent interface {
@@ -64,14 +84,21 @@ type Config struct {
 }
 
 type Task struct {
-	ID             string     `json:"id"`
-	Request        Request    `json:"request"`
-	MasterAgent    string     `json:"master_agent"`
-	Status         string     `json:"status"`
-	CurrentStep    int        `json:"current_step"`
-	NeedsConfirm   bool       `json:"needs_confirm"`
-	Results        []Response `json:"results"`
-	PendingResults []Response `json:"pending_results,omitempty"`
+	ID               string     `json:"id"`
+	Request          Request    `json:"request"`
+	MasterAgent      string     `json:"master_agent"`
+	Status           string     `json:"status"`
+	CurrentStep      int        `json:"current_step"`
+	NeedsConfirm     bool       `json:"needs_confirm"`
+	Preview          *Preview   `json:"preview,omitempty"`
+	Results          []Response `json:"results"`
+	PendingResults   []Response `json:"pending_results,omitempty"`
+	Logs             []TaskLog  `json:"logs,omitempty"`
+	ErrorMessage     string     `json:"error_message,omitempty"`
+	ConfirmComment   string     `json:"confirm_comment,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	LastConfirmedAt  *time.Time `json:"last_confirmed_at,omitempty"`
 }
 
 const (
@@ -79,4 +106,5 @@ const (
 	TaskStatusRunning        = "running"
 	TaskStatusSuccess        = "success"
 	TaskStatusRejected       = "rejected"
+	TaskStatusFailed         = "failed"
 )

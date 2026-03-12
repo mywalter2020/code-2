@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"sync/atomic"
+	"time"
 
 	"juyu-ai-platform/internal/registry"
 	"juyu-ai-platform/internal/router"
@@ -39,36 +40,58 @@ func (o *Orchestrator) Execute(ctx context.Context, req types.Request) (types.Ex
 		return types.ExecuteResponse{}, fmt.Errorf("no binding for master agent: %s", master.Code)
 	}
 
+	now := time.Now()
 	taskID := fmt.Sprintf("task-%06d", o.counter.Add(1))
 	task := &types.Task{
 		ID:          taskID,
 		Request:     req,
 		MasterAgent: master.Code,
 		Status:      types.TaskStatusRunning,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		Logs: []types.TaskLog{{
+			Time:    now,
+			Step:    0,
+			Agent:   master.Code,
+			Action:  "task_created",
+			Message: "task created",
+		}},
 	}
 
-	results, currentStep, needsConfirm, pendingResults, status, err := o.runBinding(ctx, req, binding, 0, nil)
-	if err != nil {
-		return types.ExecuteResponse{}, err
-	}
-
+	results, currentStep, needsConfirm, pendingResults, status, preview, logs, errMsg, err := o.runBinding(ctx, req, binding, 0, nil)
 	task.Results = results
 	task.PendingResults = pendingResults
 	task.CurrentStep = currentStep
 	task.NeedsConfirm = needsConfirm
 	task.Status = status
+	task.Preview = preview
+	task.ErrorMessage = errMsg
+	task.Logs = append(task.Logs, logs...)
+	task.UpdatedAt = time.Now()
 	o.store.Save(task)
+
+	if err != nil {
+		return types.ExecuteResponse{
+			TaskID:      task.ID,
+			MasterAgent: master.Code,
+			Scene:       req.Scene,
+			Status:      task.Status,
+			Preview:     task.Preview,
+			Results:     task.Results,
+		}, err
+	}
 
 	return types.ExecuteResponse{
 		TaskID:      task.ID,
 		MasterAgent: master.Code,
 		Scene:       req.Scene,
 		Status:      task.Status,
+		Preview:     task.Preview,
 		Results:     task.Results,
 	}, nil
 }
 
-func (o *Orchestrator) Confirm(ctx context.Context, taskID string, approved bool) (types.Task, error) {
+func (o *Orchestrator) Confirm(ctx context.Context, taskID string, approved bool, comment string) (types.Task, error) {
 	task, err := o.store.Get(taskID)
 	if err != nil {
 		return types.Task{}, err
@@ -77,9 +100,21 @@ func (o *Orchestrator) Confirm(ctx context.Context, taskID string, approved bool
 		return *task, nil
 	}
 	if !approved {
+		now := time.Now()
 		task.Status = types.TaskStatusRejected
 		task.NeedsConfirm = false
 		task.PendingResults = nil
+		task.ConfirmComment = comment
+		task.UpdatedAt = now
+		task.LastConfirmedAt = &now
+		task.Logs = append(task.Logs, types.TaskLog{
+			Time:    now,
+			Step:    task.CurrentStep,
+			Agent:   task.MasterAgent,
+			Action:  "task_rejected",
+			Message: "task rejected by user",
+			Data:    map[string]any{"comment": comment},
+		})
 		o.store.Save(task)
 		return *task, nil
 	}
@@ -89,16 +124,31 @@ func (o *Orchestrator) Confirm(ctx context.Context, taskID string, approved bool
 		return types.Task{}, fmt.Errorf("no binding for master agent: %s", task.MasterAgent)
 	}
 
-	results, currentStep, needsConfirm, pendingResults, status, err := o.runBinding(ctx, task.Request, binding, task.CurrentStep, task.Results)
-	if err != nil {
-		return types.Task{}, err
-	}
+	results, currentStep, needsConfirm, pendingResults, status, preview, logs, errMsg, err := o.runBinding(ctx, task.Request, binding, task.CurrentStep, task.Results)
+	now := time.Now()
 	task.Results = results
 	task.PendingResults = pendingResults
 	task.CurrentStep = currentStep
 	task.NeedsConfirm = needsConfirm
 	task.Status = status
+	task.Preview = preview
+	task.ErrorMessage = errMsg
+	task.ConfirmComment = comment
+	task.UpdatedAt = now
+	task.LastConfirmedAt = &now
+	task.Logs = append(task.Logs, types.TaskLog{
+		Time:    now,
+		Step:    task.CurrentStep,
+		Agent:   task.MasterAgent,
+		Action:  "task_confirmed",
+		Message: "task approved by user",
+		Data:    map[string]any{"comment": comment},
+	})
+	task.Logs = append(task.Logs, logs...)
 	o.store.Save(task)
+	if err != nil {
+		return *task, err
+	}
 	return *task, nil
 }
 
@@ -110,8 +160,9 @@ func (o *Orchestrator) GetTask(taskID string) (types.Task, error) {
 	return *t, nil
 }
 
-func (o *Orchestrator) runBinding(ctx context.Context, req types.Request, binding types.Binding, startStep int, existing []types.Response) ([]types.Response, int, bool, []types.Response, string, error) {
+func (o *Orchestrator) runBinding(ctx context.Context, req types.Request, binding types.Binding, startStep int, existing []types.Response) ([]types.Response, int, bool, []types.Response, string, *types.Preview, []types.TaskLog, string, error) {
 	results := append([]types.Response{}, existing...)
+	logs := make([]types.TaskLog, 0)
 
 	if len(binding.Workflow) > 0 {
 		workflow := append([]types.WorkflowStep{}, binding.Workflow...)
@@ -120,37 +171,96 @@ func (o *Orchestrator) runBinding(ctx context.Context, req types.Request, bindin
 			if step.Step <= startStep {
 				continue
 			}
+			logs = append(logs, types.TaskLog{
+				Time:    time.Now(),
+				Step:    step.Step,
+				Agent:   step.Ability,
+				Action:  "step_started",
+				Message: "workflow step started",
+			})
 			agent, err := o.registry.Get(step.Ability)
 			if err != nil {
-				return nil, 0, false, nil, "", err
+				return results, step.Step, false, nil, types.TaskStatusFailed, nil, logs, err.Error(), err
 			}
 			resp, err := agent.Run(ctx, req)
 			if err != nil {
-				return nil, 0, false, nil, "", fmt.Errorf("run %s failed: %w", step.Ability, err)
+				logs = append(logs, types.TaskLog{
+					Time:    time.Now(),
+					Step:    step.Step,
+					Agent:   step.Ability,
+					Action:  "step_failed",
+					Message: err.Error(),
+				})
+				return results, step.Step, false, nil, types.TaskStatusFailed, nil, logs, err.Error(), fmt.Errorf("run %s failed: %w", step.Ability, err)
 			}
+			results = append(results, resp)
+			logs = append(logs, types.TaskLog{
+				Time:    time.Now(),
+				Step:    step.Step,
+				Agent:   step.Ability,
+				Action:  "step_completed",
+				Message: "workflow step completed",
+				Data:    resp.Data,
+			})
 			if step.RequireHumanConfirm {
 				if resp.Data == nil {
 					resp.Data = map[string]any{}
 				}
 				resp.Data["require_human_confirm"] = true
-				results = append(results, resp)
-				return results, step.Step, true, []types.Response{resp}, types.TaskStatusPendingConfirm, nil
+				results[len(results)-1] = resp
+				preview := buildPreview(req, results)
+				logs = append(logs, types.TaskLog{
+					Time:    time.Now(),
+					Step:    step.Step,
+					Agent:   step.Ability,
+					Action:  "awaiting_confirmation",
+					Message: "waiting for human confirmation",
+				})
+				return results, step.Step, true, []types.Response{resp}, types.TaskStatusPendingConfirm, preview, logs, "", nil
 			}
-			results = append(results, resp)
 		}
-		return results, len(workflow), false, nil, types.TaskStatusSuccess, nil
+		return results, len(workflow), false, nil, types.TaskStatusSuccess, buildPreview(req, results), logs, "", nil
 	}
 
-	for _, code := range binding.Abilities {
+	for idx, code := range binding.Abilities {
+		step := idx + 1
 		agent, err := o.registry.Get(code)
 		if err != nil {
-			return nil, 0, false, nil, "", err
+			return results, step, false, nil, types.TaskStatusFailed, nil, logs, err.Error(), err
 		}
 		resp, err := agent.Run(ctx, req)
 		if err != nil {
-			return nil, 0, false, nil, "", fmt.Errorf("run %s failed: %w", code, err)
+			return results, step, false, nil, types.TaskStatusFailed, nil, logs, err.Error(), fmt.Errorf("run %s failed: %w", code, err)
 		}
 		results = append(results, resp)
 	}
-	return results, len(binding.Abilities), false, nil, types.TaskStatusSuccess, nil
+	return results, len(binding.Abilities), false, nil, types.TaskStatusSuccess, buildPreview(req, results), logs, "", nil
+}
+
+func buildPreview(req types.Request, results []types.Response) *types.Preview {
+	fields := map[string]any{
+		"scene": req.Scene,
+		"input": req.Input,
+	}
+	for _, r := range results {
+		switch r.Agent {
+		case "content_gen":
+			if content, ok := r.Data["content"]; ok {
+				fields["content"] = content
+			}
+		case "page_gen":
+			if page, ok := r.Data["page"]; ok {
+				fields["page"] = page
+			}
+		case "publish_exec":
+			fields["publish_status"] = r.Data["publish_status"]
+		case "onshelf_exec":
+			fields["shelf_status"] = r.Data["shelf_status"]
+		}
+	}
+	return &types.Preview{
+		Title:   fmt.Sprintf("%s 场景预览", req.Scene),
+		Summary: "系统已生成预览数据，可用于展示或人工确认",
+		Fields:  fields,
+	}
 }

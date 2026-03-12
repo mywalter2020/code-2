@@ -21,8 +21,22 @@ func main() {
 
 	rg := registry.New()
 	for _, ability := range cfg.AbilityAgents {
-		if ability.Enabled {
-			rg.Register(agents.NewBaseAgent(ability.Code, ability.Name))
+		if !ability.Enabled {
+			continue
+		}
+		switch ability.Code {
+		case "content_gen":
+			rg.Register(agents.NewContentAgent())
+		case "page_gen":
+			rg.Register(agents.NewPageAgent())
+		case "review_check":
+			rg.Register(agents.NewReviewAgent())
+		case "publish_exec":
+			rg.Register(agents.NewPublishAgent())
+		case "onshelf_exec":
+			rg.Register(agents.NewOnShelfAgent())
+		default:
+			rg.Register(agents.NewGenericAgent(ability.Code, ability.Name))
 		}
 	}
 
