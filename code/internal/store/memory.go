@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 
 	"juyu-ai-platform/internal/types"
@@ -30,4 +31,17 @@ func (s *MemoryStore) Get(id string) (*types.Task, error) {
 		return nil, fmt.Errorf("task not found: %s", id)
 	}
 	return task, nil
+}
+
+func (s *MemoryStore) List() []types.Task {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]types.Task, 0, len(s.tasks))
+	for _, task := range s.tasks {
+		items = append(items, *task)
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].CreatedAt.After(items[j].CreatedAt)
+	})
+	return items
 }

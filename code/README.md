@@ -35,6 +35,9 @@
 ### `POST /execute`
 按场景触发大 Agent 编排执行
 
+### `GET /tasks`
+查看任务列表
+
 ### `GET /tasks/{task_id}`
 查询任务详情、日志、预览、状态
 

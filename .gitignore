@@ -1,0 +1,17 @@
+# local runtime
+.local/
+.openclaw/
+
+# binaries
+code/platform
+bin/
+
+# logs / temp
+*.log
+*.tmp
+*.out
+
+# editor
+.vscode/
+.idea/
+.DS_Store

@@ -160,6 +160,10 @@ func (o *Orchestrator) GetTask(taskID string) (types.Task, error) {
 	return *t, nil
 }
 
+func (o *Orchestrator) ListTasks() []types.Task {
+	return o.store.List()
+}
+
 func (o *Orchestrator) runBinding(ctx context.Context, req types.Request, binding types.Binding, startStep int, existing []types.Response) ([]types.Response, int, bool, []types.Response, string, *types.Preview, []types.TaskLog, string, error) {
 	results := append([]types.Response{}, existing...)
 	logs := make([]types.TaskLog, 0)
