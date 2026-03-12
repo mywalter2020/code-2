@@ -1,0 +1,43 @@
+master_agents:
+  - code: product_ops
+    name: 商品运营Agent
+    scene_type: product
+    enabled: true
+  - code: content_publish
+    name: 内容分发Agent
+    scene_type: content
+    enabled: true
+  - code: competition_builder
+    name: 比赛项目Agent
+    scene_type: competition
+    enabled: true
+
+ability_agents:
+  - code: content_gen
+    name: 内容生成Agent
+    type: llm
+    enabled: true
+  - code: page_gen
+    name: 页面生成Agent
+    type: render
+    enabled: true
+  - code: review_check
+    name: 审核确认Agent
+    type: review
+    enabled: true
+  - code: publish_exec
+    name: 发布执行Agent
+    type: executor
+    enabled: true
+  - code: onshelf_exec
+    name: 上下架执行Agent
+    type: executor
+    enabled: true
+
+bindings:
+  - master_agent: product_ops
+    abilities: [content_gen, page_gen, review_check, publish_exec, onshelf_exec]
+  - master_agent: content_publish
+    abilities: [content_gen, review_check]
+  - master_agent: competition_builder
+    abilities: [content_gen, page_gen]
