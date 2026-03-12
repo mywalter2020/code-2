@@ -52,10 +52,17 @@
 go run ./code/cmd/platform
 ```
 
-配置文件位于：
+配置文件默认自动查找：
 
 ```bash
 configs/agents.yaml
+../configs/agents.yaml
+```
+
+也可以手动指定：
+
+```bash
+JUYU_CONFIG=configs/agents.yaml go run ./code/cmd/platform
 ```
 
 ## 当前说明

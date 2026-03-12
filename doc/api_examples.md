@@ -2,6 +2,15 @@
 
 ## 1. 健康检查
 
+先启动服务：
+
+```bash
+export PATH="/root/.openclaw/workspace/.local/go/bin:$PATH"
+JUYU_CONFIG=/root/.openclaw/workspace/configs/agents.yaml go run ./cmd/platform
+```
+
+然后执行：
+
 ```bash
 curl http://localhost:8080/healthz
 ```

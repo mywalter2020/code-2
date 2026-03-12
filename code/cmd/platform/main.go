@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	cfg, err := config.Load("configs/agents.yaml")
+	cfg, err := config.Load(config.ResolveConfigPath())
 	if err != nil {
 		log.Fatalf("load config failed: %v", err)
 	}
