@@ -33,11 +33,57 @@ ability_agents:
     name: 上下架执行Agent
     type: executor
     enabled: true
+  - code: image_gen
+    name: 图像生成Agent
+    type: multimodal
+    enabled: true
+  - code: video_gen
+    name: 视频生成Agent
+    type: multimodal
+    enabled: true
+  - code: proposal_gen
+    name: 方案生成Agent
+    type: llm
+    enabled: true
+  - code: ppt_outline
+    name: PPT大纲Agent
+    type: llm
+    enabled: true
 
 bindings:
   - master_agent: product_ops
-    abilities: [content_gen, page_gen, review_check, publish_exec, onshelf_exec]
+    workflow:
+      - step: 1
+        ability: content_gen
+      - step: 2
+        ability: page_gen
+      - step: 3
+        ability: review_check
+        require_human_confirm: true
+      - step: 4
+        ability: publish_exec
+      - step: 5
+        ability: onshelf_exec
+
   - master_agent: content_publish
-    abilities: [content_gen, review_check]
+    workflow:
+      - step: 1
+        ability: content_gen
+      - step: 2
+        ability: image_gen
+      - step: 3
+        ability: video_gen
+      - step: 4
+        ability: review_check
+        require_human_confirm: true
+
   - master_agent: competition_builder
-    abilities: [content_gen, page_gen]
+    workflow:
+      - step: 1
+        ability: proposal_gen
+      - step: 2
+        ability: ppt_outline
+      - step: 3
+        ability: image_gen
+      - step: 4
+        ability: video_gen

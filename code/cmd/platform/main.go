@@ -1,16 +1,15 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"log"
+	"net/http"
 
 	"juyu-ai-platform/internal/agents"
 	"juyu-ai-platform/internal/config"
 	"juyu-ai-platform/internal/orchestrator"
 	"juyu-ai-platform/internal/registry"
 	"juyu-ai-platform/internal/router"
-	"juyu-ai-platform/internal/types"
+	"juyu-ai-platform/internal/server"
 )
 
 func main() {
@@ -22,27 +21,20 @@ func main() {
 	rg := registry.New()
 	for _, ability := range cfg.AbilityAgents {
 		if ability.Enabled {
-			rg.Register(agents.NewEchoAgent(ability.Code))
+			rg.Register(agents.NewBaseAgent(ability.Code, ability.Name))
 		}
 	}
 
 	rt := router.New(cfg.MasterAgents)
 	orc := orchestrator.New(rt, rg, cfg.Bindings)
+	api := server.New(orc, rg)
 
-	req := types.Request{
-		Scene: "product",
-		Input: "在阿里平台生成商品页面并准备上架",
-		Payload: map[string]any{
-			"platform": "alibaba",
-		},
-	}
+	mux := http.NewServeMux()
+	api.Register(mux)
 
-	results, err := orc.Execute(context.Background(), req)
-	if err != nil {
-		log.Fatalf("execute failed: %v", err)
-	}
-
-	for _, item := range results {
-		fmt.Printf("agent=%s success=%v data=%v\n", item.Agent, item.Success, item.Data)
+	addr := ":8080"
+	log.Printf("JuYu AI platform listening on %s", addr)
+	if err := http.ListenAndServe(addr, mux); err != nil {
+		log.Fatalf("server failed: %v", err)
 	}
 }

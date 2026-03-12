@@ -9,7 +9,9 @@ type Router struct {
 func New(masters []types.MasterAgent) *Router {
 	items := make(map[string]types.MasterAgent)
 	for _, m := range masters {
-		items[m.SceneType] = m
+		if m.Enabled {
+			items[m.SceneType] = m
+		}
 	}
 	return &Router{masters: items}
 }
