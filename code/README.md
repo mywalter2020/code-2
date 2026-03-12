@@ -11,7 +11,7 @@
 - 任务流（task_id / 状态 / 查询 / 确认 / cancel / retry）
 - 预览数据结构（preview）
 - 执行日志与失败状态
-- memory / sqlite 两种任务存储模式
+- memory / sqlite / postgres 三种任务存储模式
 
 ## 目录
 
@@ -63,6 +63,16 @@ JUYU_CONFIG=/root/.openclaw/workspace/configs/agents.yaml go run ./cmd/platform
 ```bash
 export PATH="/root/.openclaw/workspace/.local/go/bin:$PATH"
 JUYU_STORE=sqlite JUYU_SQLITE_PATH=juyu.db JUYU_CONFIG=/root/.openclaw/workspace/configs/agents.yaml go run ./cmd/platform
+```
+
+使用 PostgreSQL：
+
+```bash
+export PATH="/root/.openclaw/workspace/.local/go/bin:$PATH"
+JUYU_STORE=postgres \
+JUYU_PG_DSN='host=127.0.0.1 port=5432 user=postgres password=postgres dbname=juyu sslmode=disable timezone=Asia/Shanghai' \
+JUYU_CONFIG=/root/.openclaw/workspace/configs/agents.yaml \
+go run ./cmd/platform
 ```
 
 ## 当前说明

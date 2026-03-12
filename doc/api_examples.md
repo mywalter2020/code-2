@@ -7,6 +7,16 @@ export PATH="/root/.openclaw/workspace/.local/go/bin:$PATH"
 JUYU_CONFIG=/root/.openclaw/workspace/configs/agents.yaml go run ./cmd/platform
 ```
 
+如果用 PostgreSQL：
+
+```bash
+export PATH="/root/.openclaw/workspace/.local/go/bin:$PATH"
+JUYU_STORE=postgres \
+JUYU_PG_DSN='host=127.0.0.1 port=5432 user=postgres password=postgres dbname=juyu sslmode=disable timezone=Asia/Shanghai' \
+JUYU_CONFIG=/root/.openclaw/workspace/configs/agents.yaml \
+go run ./cmd/platform
+```
+
 ## 1. 健康检查
 
 ```bash

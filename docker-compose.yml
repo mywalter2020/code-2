@@ -1,0 +1,28 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:16
+    container_name: juyu-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: juyu
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: juyu-app
+    depends_on:
+      - postgres
+    environment:
+      JUYU_CONFIG: /app/configs/agents.yaml
+      JUYU_STORE: postgres
+      JUYU_PG_DSN: host=postgres port=5432 user=postgres password=postgres dbname=juyu sslmode=disable timezone=Asia/Shanghai
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:

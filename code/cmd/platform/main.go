@@ -44,13 +44,20 @@ func main() {
 
 	var st store.TaskStore
 	driver := config.GetEnv("JUYU_STORE", "memory")
-	if driver == "sqlite" {
+	switch driver {
+	case "sqlite":
 		sqliteStore, err := store.NewSQLiteStore(store.ParseDSN(config.GetEnv("JUYU_SQLITE_PATH", "juyu.db")))
 		if err != nil {
 			log.Fatalf("init sqlite store failed: %v", err)
 		}
 		st = sqliteStore
-	} else {
+	case "postgres", "pg":
+		pgStore, err := store.NewPostgresStore(config.GetEnv("JUYU_PG_DSN", store.DefaultPostgresDSN()))
+		if err != nil {
+			log.Fatalf("init postgres store failed: %v", err)
+		}
+		st = pgStore
+	default:
 		st = store.NewMemoryStore()
 	}
 
