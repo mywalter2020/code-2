@@ -44,6 +44,12 @@
 ### `GET /bindings`
 查看主控 Agent 与能力 / workflow 绑定关系
 
+### `GET /adapters/health`
+查看平台 adapter 健康状态
+
+### `GET /adapters/credentials`
+查看平台凭据配置模型（示例）
+
 ### `POST /execute`
 按场景触发大 Agent 编排执行
 

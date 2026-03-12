@@ -24,7 +24,7 @@ func (a *OnShelfAgent) Run(ctx context.Context, req types.Request) (types.Respon
 	if err != nil {
 		return types.Response{}, err
 	}
-	result, err := adapter.OnShelf(ctx, req.Payload)
+	result, err := adapter.OnShelf(ctx, types.AdapterRequest{Platform: platform, Action: "on_shelf", Operator: req.Operator, Payload: req.Payload})
 	if err != nil {
 		return types.Response{}, err
 	}
@@ -32,12 +32,12 @@ func (a *OnShelfAgent) Run(ctx context.Context, req types.Request) (types.Respon
 		Agent:   a.Code(),
 		Success: true,
 		Data: map[string]any{
-			"scene":        req.Scene,
-			"input":        req.Input,
-			"ability":      a.Code(),
-			"summary":      "上下架执行完成",
-			"shelf_status": result["status"],
-			"platform":     platform,
+			"scene":          req.Scene,
+			"input":          req.Input,
+			"ability":        a.Code(),
+			"summary":        "上下架执行完成",
+			"shelf_status":   result.Status,
+			"platform":       platform,
 			"adapter_result": result,
 		},
 	}, nil

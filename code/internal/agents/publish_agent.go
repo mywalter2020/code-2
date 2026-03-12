@@ -29,7 +29,7 @@ func (a *PublishAgent) Run(ctx context.Context, req types.Request) (types.Respon
 	if err != nil {
 		return types.Response{}, err
 	}
-	result, err := adapter.Publish(ctx, req.Payload)
+	result, err := adapter.Publish(ctx, types.AdapterRequest{Platform: platform, Action: "publish", Operator: req.Operator, Payload: req.Payload})
 	if err != nil {
 		return types.Response{}, err
 	}
@@ -41,7 +41,7 @@ func (a *PublishAgent) Run(ctx context.Context, req types.Request) (types.Respon
 			"input":          req.Input,
 			"ability":        a.Code(),
 			"summary":        "发布执行完成",
-			"publish_status": result["status"],
+			"publish_status": result.Status,
 			"platform":       platform,
 			"adapter_result": result,
 		},
