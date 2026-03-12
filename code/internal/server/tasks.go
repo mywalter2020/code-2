@@ -24,5 +24,5 @@ func (s *Server) handleTaskList(w http.ResponseWriter, r *http.Request) {
 		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
 		return
 	}
-	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"tasks": items, "count": len(items)})
+	writeAPI(w, http.StatusOK, true, "", "ok", "", types.PageResult{Items: items, Count: len(items), Limit: limit, Offset: offset})
 }

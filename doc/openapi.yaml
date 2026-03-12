@@ -48,6 +48,12 @@ paths:
       responses:
         '200':
           description: Task list
+  /tasks/summary:
+    get:
+      summary: Get task summary statistics
+      responses:
+        '200':
+          description: Task summary
   /tasks/{taskId}:
     get:
       summary: Get task detail

@@ -49,31 +49,37 @@ curl -X POST http://localhost:8080/execute \
 curl http://localhost:8080/tasks
 ```
 
-## 5. 查询任务详情
+## 5. 查看任务汇总
+
+```bash
+curl http://localhost:8080/tasks/summary
+```
+
+## 6. 查询任务详情
 
 ```bash
 curl http://localhost:8080/tasks/task-000001
 ```
 
-## 6. 查看任务预览
+## 7. 查看任务预览
 
 ```bash
 curl http://localhost:8080/tasks/task-000001/preview
 ```
 
-## 7. 查看任务日志
+## 8. 查看任务日志
 
 ```bash
 curl http://localhost:8080/tasks/task-000001/logs
 ```
 
-## 8. 查看任务状态
+## 9. 查看任务状态
 
 ```bash
 curl http://localhost:8080/tasks/task-000001/status
 ```
 
-## 9. 确认任务继续执行
+## 10. 确认任务继续执行
 
 ```bash
 curl -X POST http://localhost:8080/tasks/task-000001/confirm \
@@ -84,7 +90,7 @@ curl -X POST http://localhost:8080/tasks/task-000001/confirm \
   }'
 ```
 
-## 10. 拒绝任务
+## 11. 拒绝任务
 
 ```bash
 curl -X POST http://localhost:8080/tasks/task-000001/confirm \
@@ -95,7 +101,7 @@ curl -X POST http://localhost:8080/tasks/task-000001/confirm \
   }'
 ```
 
-## 11. 模拟发布失败
+## 12. 模拟发布失败
 
 ```bash
 curl -X POST http://localhost:8080/execute \
@@ -110,7 +116,7 @@ curl -X POST http://localhost:8080/execute \
   }'
 ```
 
-## 12. 取消任务
+## 13. 取消任务
 
 ```bash
 curl -X POST http://localhost:8080/tasks/task-000001/cancel \
@@ -120,7 +126,7 @@ curl -X POST http://localhost:8080/tasks/task-000001/cancel \
   }'
 ```
 
-## 13. 重试任务
+## 14. 重试任务
 
 ```bash
 curl -X POST http://localhost:8080/tasks/task-000001/retry
