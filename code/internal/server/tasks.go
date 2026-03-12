@@ -9,7 +9,7 @@ import (
 
 func (s *Server) handleTaskList(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		writeAPI(w, http.StatusMethodNotAllowed, false, "", "method not allowed", nil)
+		writeAPI(w, http.StatusMethodNotAllowed, false, statusCodeToErr(http.StatusMethodNotAllowed), "", "method not allowed", nil)
 		return
 	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
@@ -21,8 +21,8 @@ func (s *Server) handleTaskList(w http.ResponseWriter, r *http.Request) {
 		Offset: offset,
 	})
 	if err != nil {
-		writeAPI(w, http.StatusBadRequest, false, "", err.Error(), nil)
+		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
 		return
 	}
-	writeAPI(w, http.StatusOK, true, "ok", "", map[string]any{"tasks": items, "count": len(items)})
+	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"tasks": items, "count": len(items)})
 }

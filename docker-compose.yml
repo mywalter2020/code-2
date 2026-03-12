@@ -10,18 +10,29 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d juyu"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   app:
     build: .
     container_name: juyu-app
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       JUYU_CONFIG: /app/configs/agents.yaml
       JUYU_STORE: postgres
       JUYU_PG_DSN: host=postgres port=5432 user=postgres password=postgres dbname=juyu sslmode=disable timezone=Asia/Shanghai
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
 
 volumes:
   pgdata:

@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"juyu-ai-platform/internal/agents"
 	"juyu-ai-platform/internal/config"
@@ -52,7 +53,11 @@ func main() {
 		}
 		st = sqliteStore
 	case "postgres", "pg":
-		pgStore, err := store.NewPostgresStore(config.GetEnv("JUYU_PG_DSN", store.DefaultPostgresDSN()))
+		pgDSN := config.GetEnv("JUYU_PG_DSN", store.DefaultPostgresDSN())
+		if err := config.WaitForPostgres(pgDSN, 20, 2*time.Second); err != nil {
+			log.Fatalf("postgres not ready: %v", err)
+		}
+		pgStore, err := store.NewPostgresStore(pgDSN)
 		if err != nil {
 			log.Fatalf("init postgres store failed: %v", err)
 		}
