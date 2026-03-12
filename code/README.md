@@ -8,9 +8,10 @@
 - workflow 顺序执行
 - 人工确认节点标记
 - HTTP API 服务入口
-- 任务流（task_id / 状态 / 查询 / 确认）
+- 任务流（task_id / 状态 / 查询 / 确认 / cancel / retry）
 - 预览数据结构（preview）
 - 执行日志与失败状态
+- memory / sqlite 两种任务存储模式
 
 ## 目录
 
@@ -44,11 +45,24 @@
 ### `POST /tasks/{task_id}/confirm`
 人工确认或拒绝任务继续执行
 
+### `POST /tasks/{task_id}/cancel`
+取消任务
+
+### `POST /tasks/{task_id}/retry`
+重试任务
+
 ## 运行
 
 ```bash
 export PATH="/root/.openclaw/workspace/.local/go/bin:$PATH"
 JUYU_CONFIG=/root/.openclaw/workspace/configs/agents.yaml go run ./cmd/platform
+```
+
+使用 SQLite 持久化：
+
+```bash
+export PATH="/root/.openclaw/workspace/.local/go/bin:$PATH"
+JUYU_STORE=sqlite JUYU_SQLITE_PATH=juyu.db JUYU_CONFIG=/root/.openclaw/workspace/configs/agents.yaml go run ./cmd/platform
 ```
 
 ## 当前说明

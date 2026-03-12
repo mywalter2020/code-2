@@ -107,4 +107,5 @@ const (
 	TaskStatusSuccess        = "success"
 	TaskStatusRejected       = "rejected"
 	TaskStatusFailed         = "failed"
+	TaskStatusCanceled       = "canceled"
 )

@@ -81,3 +81,19 @@ curl -X POST http://localhost:8080/execute \
     }
   }'
 ```
+
+## 9. 取消任务
+
+```bash
+curl -X POST http://localhost:8080/tasks/task-000001/cancel \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "comment": "用户主动取消"
+  }'
+```
+
+## 10. 重试任务
+
+```bash
+curl -X POST http://localhost:8080/tasks/task-000001/retry
+```

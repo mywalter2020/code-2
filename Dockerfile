@@ -8,5 +8,7 @@ WORKDIR /app
 COPY --from=builder /app/platform /app/platform
 COPY configs /app/configs
 ENV JUYU_CONFIG=/app/configs/agents.yaml
+ENV JUYU_STORE=sqlite
+ENV JUYU_SQLITE_PATH=/app/juyu.db
 EXPOSE 8080
 CMD ["/app/platform"]

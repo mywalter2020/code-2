@@ -41,7 +41,19 @@ func main() {
 	}
 
 	rt := router.New(cfg.MasterAgents)
-	st := store.NewMemoryStore()
+
+	var st store.TaskStore
+	driver := config.GetEnv("JUYU_STORE", "memory")
+	if driver == "sqlite" {
+		sqliteStore, err := store.NewSQLiteStore(store.ParseDSN(config.GetEnv("JUYU_SQLITE_PATH", "juyu.db")))
+		if err != nil {
+			log.Fatalf("init sqlite store failed: %v", err)
+		}
+		st = sqliteStore
+	} else {
+		st = store.NewMemoryStore()
+	}
+
 	orc := orchestrator.New(rt, rg, st, cfg.Bindings)
 	api := server.New(orc, rg)
 

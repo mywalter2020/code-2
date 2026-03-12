@@ -16,12 +16,12 @@ import (
 type Orchestrator struct {
 	router   *router.Router
 	registry *registry.Registry
-	store    *store.MemoryStore
+	store    store.TaskStore
 	bindings map[string]types.Binding
 	counter  atomic.Uint64
 }
 
-func New(rt *router.Router, rg *registry.Registry, st *store.MemoryStore, bindingList []types.Binding) *Orchestrator {
+func New(rt *router.Router, rg *registry.Registry, st store.TaskStore, bindingList []types.Binding) *Orchestrator {
 	bindings := make(map[string]types.Binding)
 	for _, b := range bindingList {
 		bindings[b.MasterAgent] = b
@@ -68,7 +68,7 @@ func (o *Orchestrator) Execute(ctx context.Context, req types.Request) (types.Ex
 	task.ErrorMessage = errMsg
 	task.Logs = append(task.Logs, logs...)
 	task.UpdatedAt = time.Now()
-	o.store.Save(task)
+	_ = o.store.Save(task)
 
 	if err != nil {
 		return types.ExecuteResponse{
@@ -115,7 +115,7 @@ func (o *Orchestrator) Confirm(ctx context.Context, taskID string, approved bool
 			Message: "task rejected by user",
 			Data:    map[string]any{"comment": comment},
 		})
-		o.store.Save(task)
+		_ = o.store.Save(task)
 		return *task, nil
 	}
 
@@ -145,7 +145,7 @@ func (o *Orchestrator) Confirm(ctx context.Context, taskID string, approved bool
 		Data:    map[string]any{"comment": comment},
 	})
 	task.Logs = append(task.Logs, logs...)
-	o.store.Save(task)
+	_ = o.store.Save(task)
 	if err != nil {
 		return *task, err
 	}
@@ -160,8 +160,50 @@ func (o *Orchestrator) GetTask(taskID string) (types.Task, error) {
 	return *t, nil
 }
 
-func (o *Orchestrator) ListTasks() []types.Task {
-	return o.store.List()
+func (o *Orchestrator) ListTasks(filter types.TaskFilter) ([]types.Task, error) {
+	return o.store.List(filter)
+}
+
+func (o *Orchestrator) Cancel(taskID string, comment string) (types.Task, error) {
+	task, err := o.store.Get(taskID)
+	if err != nil {
+		return types.Task{}, err
+	}
+	task.Status = types.TaskStatusCanceled
+	task.NeedsConfirm = false
+	task.PendingResults = nil
+	task.ConfirmComment = comment
+	task.UpdatedAt = time.Now()
+	task.Logs = append(task.Logs, types.TaskLog{Time: task.UpdatedAt, Step: task.CurrentStep, Agent: task.MasterAgent, Action: "task_canceled", Message: "task canceled by user", Data: map[string]any{"comment": comment}})
+	_ = o.store.Save(task)
+	return *task, nil
+}
+
+func (o *Orchestrator) Retry(ctx context.Context, taskID string) (types.Task, error) {
+	task, err := o.store.Get(taskID)
+	if err != nil {
+		return types.Task{}, err
+	}
+	binding, ok := o.bindings[task.MasterAgent]
+	if !ok {
+		return types.Task{}, fmt.Errorf("no binding for master agent: %s", task.MasterAgent)
+	}
+	results, currentStep, needsConfirm, pendingResults, status, preview, logs, errMsg, runErr := o.runBinding(ctx, task.Request, binding, 0, nil)
+	task.Results = results
+	task.CurrentStep = currentStep
+	task.NeedsConfirm = needsConfirm
+	task.PendingResults = pendingResults
+	task.Status = status
+	task.Preview = preview
+	task.ErrorMessage = errMsg
+	task.UpdatedAt = time.Now()
+	task.Logs = append(task.Logs, types.TaskLog{Time: task.UpdatedAt, Step: 0, Agent: task.MasterAgent, Action: "task_retried", Message: "task retried"})
+	task.Logs = append(task.Logs, logs...)
+	_ = o.store.Save(task)
+	if runErr != nil {
+		return *task, runErr
+	}
+	return *task, nil
 }
 
 func (o *Orchestrator) runBinding(ctx context.Context, req types.Request, binding types.Binding, startStep int, existing []types.Response) ([]types.Response, int, bool, []types.Response, string, *types.Preview, []types.TaskLog, string, error) {

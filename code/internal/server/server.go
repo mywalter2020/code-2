@@ -94,6 +94,14 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, task)
 		return
 	}
+	if len(parts) == 2 && parts[1] == "cancel" && r.Method == http.MethodPost {
+		s.handleTaskCancel(w, r, taskID)
+		return
+	}
+	if len(parts) == 2 && parts[1] == "retry" && r.Method == http.MethodPost {
+		s.handleTaskRetry(w, r, taskID)
+		return
+	}
 
 	writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "unsupported task operation"})
 }
