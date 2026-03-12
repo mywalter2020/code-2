@@ -1,7 +1,5 @@
 # API Examples
 
-## 1. 健康检查
-
 先启动服务：
 
 ```bash
@@ -9,7 +7,7 @@ export PATH="/root/.openclaw/workspace/.local/go/bin:$PATH"
 JUYU_CONFIG=/root/.openclaw/workspace/configs/agents.yaml go run ./cmd/platform
 ```
 
-然后执行：
+## 1. 健康检查
 
 ```bash
 curl http://localhost:8080/healthz
@@ -21,7 +19,7 @@ curl http://localhost:8080/healthz
 curl http://localhost:8080/abilities
 ```
 
-## 3. 商品运营场景执行
+## 3. 创建商品运营任务
 
 ```bash
 curl -X POST http://localhost:8080/execute \
@@ -35,16 +33,28 @@ curl -X POST http://localhost:8080/execute \
   }'
 ```
 
-## 4. 比赛项目场景执行
+## 4. 查询任务
 
 ```bash
-curl -X POST http://localhost:8080/execute \
+curl http://localhost:8080/tasks/task-000001
+```
+
+## 5. 确认任务继续执行
+
+```bash
+curl -X POST http://localhost:8080/tasks/task-000001/confirm \
   -H 'Content-Type: application/json' \
   -d '{
-    "scene": "competition",
-    "input": "为阿里AI大赛生成一套项目方案和演示材料",
-    "payload": {
-      "contest": "alibaba-ai"
-    }
+    "approved": true
+  }'
+```
+
+## 6. 拒绝任务
+
+```bash
+curl -X POST http://localhost:8080/tasks/task-000001/confirm \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "approved": false
   }'
 ```

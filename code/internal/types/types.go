@@ -15,9 +15,15 @@ type Response struct {
 }
 
 type ExecuteResponse struct {
+	TaskID      string     `json:"task_id"`
 	MasterAgent string     `json:"master_agent"`
 	Scene       string     `json:"scene"`
+	Status      string     `json:"status"`
 	Results     []Response `json:"results"`
+}
+
+type ConfirmRequest struct {
+	Approved bool `json:"approved"`
 }
 
 type AbilityAgent interface {
@@ -52,7 +58,25 @@ type Binding struct {
 }
 
 type Config struct {
-	MasterAgents  []MasterAgent  `yaml:"master_agents"`
+	MasterAgents  []MasterAgent   `yaml:"master_agents"`
 	AbilityAgents []AbilityConfig `yaml:"ability_agents"`
-	Bindings      []Binding      `yaml:"bindings"`
+	Bindings      []Binding       `yaml:"bindings"`
 }
+
+type Task struct {
+	ID             string     `json:"id"`
+	Request        Request    `json:"request"`
+	MasterAgent    string     `json:"master_agent"`
+	Status         string     `json:"status"`
+	CurrentStep    int        `json:"current_step"`
+	NeedsConfirm   bool       `json:"needs_confirm"`
+	Results        []Response `json:"results"`
+	PendingResults []Response `json:"pending_results,omitempty"`
+}
+
+const (
+	TaskStatusPendingConfirm = "pending_confirm"
+	TaskStatusRunning        = "running"
+	TaskStatusSuccess        = "success"
+	TaskStatusRejected       = "rejected"
+)

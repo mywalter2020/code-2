@@ -10,6 +10,7 @@ import (
 	"juyu-ai-platform/internal/registry"
 	"juyu-ai-platform/internal/router"
 	"juyu-ai-platform/internal/server"
+	"juyu-ai-platform/internal/store"
 )
 
 func main() {
@@ -26,7 +27,8 @@ func main() {
 	}
 
 	rt := router.New(cfg.MasterAgents)
-	orc := orchestrator.New(rt, rg, cfg.Bindings)
+	st := store.NewMemoryStore()
+	orc := orchestrator.New(rt, rg, st, cfg.Bindings)
 	api := server.New(orc, rg)
 
 	mux := http.NewServeMux()
