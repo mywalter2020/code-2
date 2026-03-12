@@ -81,6 +81,17 @@ paths:
       responses:
         '200':
           description: Task logs
+  /tasks/{taskId}/status:
+    get:
+      summary: Get task status summary
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Task status
   /tasks/{taskId}/confirm:
     post:
       summary: Confirm or reject task

@@ -14,17 +14,17 @@ func (s *Server) handleTaskCancel(w http.ResponseWriter, r *http.Request, taskID
 	_ = json.NewDecoder(r.Body).Decode(&req)
 	task, err := s.orc.Cancel(taskID, req.Comment)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		writeAPI(w, http.StatusBadRequest, false, "", err.Error(), nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, task)
+	writeAPI(w, http.StatusOK, true, "ok", "", task)
 }
 
 func (s *Server) handleTaskRetry(w http.ResponseWriter, r *http.Request, taskID string) {
 	task, err := s.orc.Retry(r.Context(), taskID)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error(), "task": task})
+		writeAPI(w, http.StatusBadRequest, false, "", err.Error(), task)
 		return
 	}
-	writeJSON(w, http.StatusOK, task)
+	writeAPI(w, http.StatusOK, true, "ok", "", task)
 }

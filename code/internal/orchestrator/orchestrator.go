@@ -47,6 +47,7 @@ func (o *Orchestrator) Execute(ctx context.Context, req types.Request) (types.Ex
 		Request:     req,
 		MasterAgent: master.Code,
 		Status:      types.TaskStatusRunning,
+		Operator:    req.Operator,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 		Logs: []types.TaskLog{{
@@ -91,7 +92,7 @@ func (o *Orchestrator) Execute(ctx context.Context, req types.Request) (types.Ex
 	}, nil
 }
 
-func (o *Orchestrator) Confirm(ctx context.Context, taskID string, approved bool, comment string) (types.Task, error) {
+func (o *Orchestrator) Confirm(ctx context.Context, taskID string, approved bool, comment string, approver string) (types.Task, error) {
 	task, err := o.store.Get(taskID)
 	if err != nil {
 		return types.Task{}, err
@@ -105,6 +106,7 @@ func (o *Orchestrator) Confirm(ctx context.Context, taskID string, approved bool
 		task.NeedsConfirm = false
 		task.PendingResults = nil
 		task.ConfirmComment = comment
+		task.Approver = approver
 		task.UpdatedAt = now
 		task.LastConfirmedAt = &now
 		task.Logs = append(task.Logs, types.TaskLog{
@@ -134,6 +136,7 @@ func (o *Orchestrator) Confirm(ctx context.Context, taskID string, approved bool
 	task.Preview = preview
 	task.ErrorMessage = errMsg
 	task.ConfirmComment = comment
+	task.Approver = approver
 	task.UpdatedAt = now
 	task.LastConfirmedAt = &now
 	task.Logs = append(task.Logs, types.TaskLog{

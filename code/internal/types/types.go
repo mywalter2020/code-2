@@ -6,9 +6,10 @@ import (
 )
 
 type Request struct {
-	Scene   string         `json:"scene"`
-	Input   string         `json:"input"`
-	Payload map[string]any `json:"payload"`
+	Scene    string         `json:"scene"`
+	Input    string         `json:"input"`
+	Operator string         `json:"operator,omitempty"`
+	Payload  map[string]any `json:"payload"`
 }
 
 type Response struct {
@@ -29,6 +30,7 @@ type ExecuteResponse struct {
 type ConfirmRequest struct {
 	Approved bool   `json:"approved"`
 	Comment  string `json:"comment,omitempty"`
+	Approver string `json:"approver,omitempty"`
 }
 
 type Preview struct {
@@ -96,6 +98,8 @@ type Task struct {
 	Logs             []TaskLog  `json:"logs,omitempty"`
 	ErrorMessage     string     `json:"error_message,omitempty"`
 	ConfirmComment   string     `json:"confirm_comment,omitempty"`
+	Operator         string     `json:"operator,omitempty"`
+	Approver         string     `json:"approver,omitempty"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
 	LastConfirmedAt  *time.Time `json:"last_confirmed_at,omitempty"`

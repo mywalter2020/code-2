@@ -48,6 +48,9 @@
 ### `GET /tasks/{task_id}/logs`
 查看任务执行日志
 
+### `GET /tasks/{task_id}/status`
+查看任务状态摘要
+
 ### `POST /tasks/{task_id}/confirm`
 人工确认或拒绝任务继续执行
 

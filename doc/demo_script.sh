@@ -23,11 +23,15 @@ echo "[4] logs"
 curl -s "$BASE_URL/tasks/$TASK_ID/logs" | jq . || curl -s "$BASE_URL/tasks/$TASK_ID/logs"
 echo
 
-echo "[5] confirm"
-curl -s -X POST "$BASE_URL/tasks/$TASK_ID/confirm" \
-  -H 'Content-Type: application/json' \
-  -d '{"approved":true,"comment":"demo script confirm"}' | jq . || true
+echo "[5] status"
+curl -s "$BASE_URL/tasks/$TASK_ID/status" | jq . || curl -s "$BASE_URL/tasks/$TASK_ID/status"
 echo
 
-echo "[6] list tasks"
+echo "[6] confirm"
+curl -s -X POST "$BASE_URL/tasks/$TASK_ID/confirm" \
+  -H 'Content-Type: application/json' \
+  -d '{"approved":true,"comment":"demo script confirm","approver":"Walter"}' | jq . || true
+echo
+
+echo "[7] list tasks"
 curl -s "$BASE_URL/tasks?scene=product&limit=5" | jq . || curl -s "$BASE_URL/tasks?scene=product&limit=5"

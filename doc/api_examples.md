@@ -67,7 +67,13 @@ curl http://localhost:8080/tasks/task-000001/preview
 curl http://localhost:8080/tasks/task-000001/logs
 ```
 
-## 8. 确认任务继续执行
+## 8. 查看任务状态
+
+```bash
+curl http://localhost:8080/tasks/task-000001/status
+```
+
+## 9. 确认任务继续执行
 
 ```bash
 curl -X POST http://localhost:8080/tasks/task-000001/confirm \
@@ -78,7 +84,7 @@ curl -X POST http://localhost:8080/tasks/task-000001/confirm \
   }'
 ```
 
-## 9. 拒绝任务
+## 10. 拒绝任务
 
 ```bash
 curl -X POST http://localhost:8080/tasks/task-000001/confirm \
@@ -89,7 +95,7 @@ curl -X POST http://localhost:8080/tasks/task-000001/confirm \
   }'
 ```
 
-## 10. 模拟发布失败
+## 11. 模拟发布失败
 
 ```bash
 curl -X POST http://localhost:8080/execute \
@@ -104,7 +110,7 @@ curl -X POST http://localhost:8080/execute \
   }'
 ```
 
-## 11. 取消任务
+## 12. 取消任务
 
 ```bash
 curl -X POST http://localhost:8080/tasks/task-000001/cancel \
@@ -114,7 +120,7 @@ curl -X POST http://localhost:8080/tasks/task-000001/cancel \
   }'
 ```
 
-## 12. 重试任务
+## 13. 重试任务
 
 ```bash
 curl -X POST http://localhost:8080/tasks/task-000001/retry
