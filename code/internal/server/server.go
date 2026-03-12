@@ -79,6 +79,14 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, task)
 		return
 	}
+	if len(parts) == 2 && parts[1] == "preview" && r.Method == http.MethodGet {
+		s.handleTaskPreview(w, taskID)
+		return
+	}
+	if len(parts) == 2 && parts[1] == "logs" && r.Method == http.MethodGet {
+		s.handleTaskLogs(w, taskID)
+		return
+	}
 
 	if len(parts) == 2 && parts[1] == "confirm" && r.Method == http.MethodPost {
 		var req types.ConfirmRequest
