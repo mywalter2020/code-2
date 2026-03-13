@@ -34,7 +34,7 @@ func (a *BaseAgent) Run(ctx context.Context, req types.Request) (types.Response,
 		result["content"] = fmt.Sprintf("基于输入生成内容：%s", req.Input)
 	case "page_gen":
 		result["page"] = map[string]any{
-			"title":   fmt.Sprintf("%s 页面预览", req.Input),
+			"title":    fmt.Sprintf("%s 页面预览", req.Input),
 			"sections": []string{"头图", "卖点", "详情", "确认区域"},
 		}
 	case "review_check":

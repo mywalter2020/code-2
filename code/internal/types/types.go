@@ -89,23 +89,23 @@ type Config struct {
 }
 
 type Task struct {
-	ID               string     `json:"id"`
-	Request          Request    `json:"request"`
-	MasterAgent      string     `json:"master_agent"`
-	Status           string     `json:"status"`
-	CurrentStep      int        `json:"current_step"`
-	NeedsConfirm     bool       `json:"needs_confirm"`
-	Preview          *Preview   `json:"preview,omitempty"`
-	Results          []Response `json:"results"`
-	PendingResults   []Response `json:"pending_results,omitempty"`
-	Logs             []TaskLog  `json:"logs,omitempty"`
-	ErrorMessage     string     `json:"error_message,omitempty"`
-	ConfirmComment   string     `json:"confirm_comment,omitempty"`
-	Operator         string     `json:"operator,omitempty"`
-	Approver         string     `json:"approver,omitempty"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
-	LastConfirmedAt  *time.Time `json:"last_confirmed_at,omitempty"`
+	ID              string     `json:"id"`
+	Request         Request    `json:"request"`
+	MasterAgent     string     `json:"master_agent"`
+	Status          string     `json:"status"`
+	CurrentStep     int        `json:"current_step"`
+	NeedsConfirm    bool       `json:"needs_confirm"`
+	Preview         *Preview   `json:"preview,omitempty"`
+	Results         []Response `json:"results"`
+	PendingResults  []Response `json:"pending_results,omitempty"`
+	Logs            []TaskLog  `json:"logs,omitempty"`
+	ErrorMessage    string     `json:"error_message,omitempty"`
+	ConfirmComment  string     `json:"confirm_comment,omitempty"`
+	Operator        string     `json:"operator,omitempty"`
+	Approver        string     `json:"approver,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	LastConfirmedAt *time.Time `json:"last_confirmed_at,omitempty"`
 }
 
 const (
