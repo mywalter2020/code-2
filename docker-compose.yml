@@ -27,6 +27,13 @@ services:
       JUYU_STORE: postgres
       JUYU_PG_DSN: host=postgres port=5432 user=postgres password=postgres dbname=juyu sslmode=disable timezone=Asia/Shanghai
       JUYU_API_KEY: ${JUYU_API_KEY:-}
+      JUYU_ADAPTER_DRY_RUN: ${JUYU_ADAPTER_DRY_RUN:-true}
+      JUYU_ALIBABA_APP_KEY: ${JUYU_ALIBABA_APP_KEY:-}
+      JUYU_ALIBABA_SECRET: ${JUYU_ALIBABA_SECRET:-}
+      JUYU_TAOBAO_APP_KEY: ${JUYU_TAOBAO_APP_KEY:-}
+      JUYU_TAOBAO_SECRET: ${JUYU_TAOBAO_SECRET:-}
+      JUYU_DOUYIN_CLIENT_ID: ${JUYU_DOUYIN_CLIENT_ID:-}
+      JUYU_DOUYIN_CLIENT_SECRET: ${JUYU_DOUYIN_CLIENT_SECRET:-}
     ports:
       - "8080:8080"
     healthcheck:

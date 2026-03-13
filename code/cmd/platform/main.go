@@ -13,7 +13,6 @@ import (
 	"juyu-ai-platform/internal/router"
 	"juyu-ai-platform/internal/server"
 	"juyu-ai-platform/internal/store"
-	"juyu-ai-platform/internal/types"
 )
 
 func main() {
@@ -22,15 +21,9 @@ func main() {
 		log.Fatalf("load config failed: %v", err)
 	}
 
-	adapterRegistry := adapters.NewRegistry()
-	adapterRegistry.Register(adapters.NewAlibabaAdapter())
-	adapterRegistry.Register(adapters.NewTaobaoAdapter())
-	adapterRegistry.Register(adapters.NewDouyinAdapter())
-
-	credentialStore := adapters.NewCredentialStore()
-	credentialStore.Set(types.AdapterCredentials{Platform: "alibaba", Fields: map[string]string{"app_key": "demo", "secret": "configured"}})
-	credentialStore.Set(types.AdapterCredentials{Platform: "taobao", Fields: map[string]string{"app_key": "demo", "secret": "configured"}})
-	credentialStore.Set(types.AdapterCredentials{Platform: "douyin", Fields: map[string]string{"client_id": "demo", "client_secret": "configured"}})
+	credentialStore := adapters.LoadCredentialsFromEnv()
+	dryRun := adapters.DryRunFromEnv()
+	adapterRegistry := adapters.NewDefaultRegistry(credentialStore, dryRun)
 
 	rg := registry.New()
 	for _, ability := range cfg.AbilityAgents {

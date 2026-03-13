@@ -14,7 +14,7 @@ import (
 
 func TestExecuteProductFlow(t *testing.T) {
 	adapterRegistry := adapters.NewRegistry()
-	adapterRegistry.Register(adapters.NewAlibabaAdapter())
+	adapterRegistry.Register(adapters.NewAlibabaAdapter(adapters.NewCredentialStore(), true))
 
 	rg := registry.New()
 	rg.Register(agents.NewContentAgent())

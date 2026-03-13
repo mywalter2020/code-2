@@ -48,10 +48,13 @@
 查看主控 Agent 与能力 / workflow 绑定关系
 
 ### `GET /adapters/health`
-查看平台 adapter 健康状态
+查看平台 adapter 健康状态（含 configured / dry_run / missing_fields）
+
+### `GET /adapters/descriptors`
+查看平台 adapter 描述信息（支持动作、必填凭据、当前模式）
 
 ### `GET /adapters/credentials`
-查看平台凭据配置模型（示例）
+查看平台凭据配置模型（当前已加载的字段）
 
 ### `GET /`
 跳转到最小前端演示页
@@ -125,6 +128,23 @@ curl -H 'X-API-Key: your-secret-key' -H 'Content-Type: application/json' \
   -d '{"scene":"product","input":"demo","payload":{"platform":"alibaba"}}' \
   http://127.0.0.1:8080/execute
 ```
+
+配置真实 adapter 凭据并控制 dry-run：
+
+```bash
+export JUYU_ADAPTER_DRY_RUN=false
+export JUYU_ALIBABA_APP_KEY=xxx
+export JUYU_ALIBABA_SECRET=xxx
+export JUYU_TAOBAO_APP_KEY=xxx
+export JUYU_TAOBAO_SECRET=xxx
+export JUYU_DOUYIN_CLIENT_ID=xxx
+export JUYU_DOUYIN_CLIENT_SECRET=xxx
+```
+
+未配置完整凭据时：
+- `GET /adapters/health` 会显示缺哪些字段
+- dry-run=true 时仍可走通演示链路
+- dry-run=false 时写动作会因缺凭据而失败
 
 ## 当前说明
 

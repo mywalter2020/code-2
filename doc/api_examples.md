@@ -47,6 +47,24 @@ curl http://localhost:8080/agents/metadata
 curl http://localhost:8080/bindings
 ```
 
+## 5.1 查看 adapter 健康
+
+```bash
+curl http://localhost:8080/adapters/health
+```
+
+## 5.2 查看 adapter 描述信息
+
+```bash
+curl http://localhost:8080/adapters/descriptors
+```
+
+## 5.3 查看 adapter 凭据加载情况
+
+```bash
+curl http://localhost:8080/adapters/credentials
+```
+
 ## 6. 创建商品运营任务（会进入待确认）
 
 ```bash

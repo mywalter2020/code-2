@@ -57,6 +57,12 @@ paths:
       responses:
         '200':
           description: Adapter health list
+  /adapters/descriptors:
+    get:
+      summary: Get adapter descriptors
+      responses:
+        '200':
+          description: Adapter descriptors
   /adapters/credentials:
     get:
       summary: Get adapter credential field model
@@ -303,3 +309,27 @@ components:
         updated_at: { type: string, format: date-time }
         preview:
           $ref: '#/components/schemas/Preview'
+    AdapterDescriptor:
+      type: object
+      properties:
+        platform: { type: string }
+        display_name: { type: string }
+        required_fields:
+          type: array
+          items: { type: string }
+        supported_actions:
+          type: array
+          items: { type: string }
+        configured: { type: boolean }
+        dry_run: { type: boolean }
+    AdapterHealth:
+      type: object
+      properties:
+        platform: { type: string }
+        healthy: { type: boolean }
+        configured: { type: boolean }
+        dry_run: { type: boolean }
+        message: { type: string }
+        missing_fields:
+          type: array
+          items: { type: string }

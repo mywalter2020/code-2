@@ -8,6 +8,7 @@ import (
 
 type PlatformAdapter interface {
 	Name() string
+	Descriptor() types.AdapterDescriptor
 	Health(ctx context.Context) (types.AdapterHealth, error)
 	Publish(ctx context.Context, req types.AdapterRequest) (types.AdapterResponse, error)
 	Update(ctx context.Context, req types.AdapterRequest) (types.AdapterResponse, error)
