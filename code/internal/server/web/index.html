@@ -40,6 +40,7 @@
     <div class="grid">
       <div class="card">
         <h2>创建任务</h2>
+        <label>API Key（可选）<input id="apiKey" placeholder="如果服务启用了 JUYU_API_KEY，就填这里" /></label>
         <label>场景
           <select id="scene">
             <option value="product">product</option>
@@ -59,11 +60,22 @@
         <label>描述<textarea id="description">主打保温、饮水提醒、礼盒包装。</textarea></label>
         <button id="createBtn">创建并执行</button>
         <div style="height:10px"></div>
-        <button class="secondary" id="refreshBtn">刷新任务列表</button>
+        <div class="row">
+          <button class="secondary" id="refreshBtn">刷新任务列表</button>
+          <button class="secondary" id="healthBtn">检查服务状态</button>
+        </div>
+        <div id="healthInfo" class="muted" style="margin-top:10px;">未检查</div>
       </div>
 
       <div class="card">
         <h2>任务面板</h2>
+        <div class="row">
+          <label>状态筛选<select id="statusFilter"><option value="">全部</option><option value="pending_confirm">pending_confirm</option><option value="success">success</option><option value="running">running</option><option value="failed">failed</option><option value="rejected">rejected</option><option value="canceled">canceled</option></select></label>
+          <label>平台筛选<select id="platformFilter"><option value="">全部</option><option value="alibaba">alibaba</option><option value="taobao">taobao</option><option value="douyin">douyin</option></select></label>
+        </div>
+        <label>关键词搜索<input id="queryFilter" placeholder="task id / input / status / operator" /></label>
+        <div style="height:10px"></div>
+        <button class="secondary" id="applyFilterBtn">应用筛选</button>
         <div id="summary" class="muted">加载中...</div>
         <div id="tasks"></div>
       </div>
@@ -93,8 +105,16 @@
 <script>
 let currentTaskId = "";
 
+function authHeaders() {
+  const apiKey = document.getElementById('apiKey')?.value?.trim();
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey) headers['X-API-Key'] = apiKey;
+  return headers;
+}
+
 async function api(path, options = {}) {
-  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options });
+  const headers = { ...authHeaders(), ...(options.headers || {}) };
+  const res = await fetch(path, { ...options, headers });
   return await res.json();
 }
 
@@ -165,8 +185,19 @@ async function loadSummary() {
     Object.entries(summary.summary || {}).map(([k,v]) => `<span class="pill">${k}: ${v}</span>`).join('');
 }
 
+function currentTaskListURL() {
+  const params = new URLSearchParams({ limit: '20' });
+  const status = document.getElementById('statusFilter')?.value;
+  const platform = document.getElementById('platformFilter')?.value;
+  const q = document.getElementById('queryFilter')?.value?.trim();
+  if (status) params.set('status', status);
+  if (platform) params.set('platform', platform);
+  if (q) params.set('q', q);
+  return `/tasks?${params.toString()}`;
+}
+
 async function loadTasks() {
-  const data = await api('/tasks?limit=20');
+  const data = await api(currentTaskListURL());
   const items = data.data?.items || [];
   const el = document.getElementById('tasks');
   el.innerHTML = items.map(task => `
@@ -229,12 +260,20 @@ async function confirmTask(approved) {
   await selectTask(currentTaskId);
 }
 
+async function checkHealth() {
+  const data = await api('/healthz');
+  const auth = data.data?.auth || {};
+  document.getElementById('healthInfo').textContent = `status=${data.data?.status || '-'} · api_key_enabled=${auth.api_key_enabled ? 'yes' : 'no'} · write_header=${auth.write_header || '-'}`;
+}
+
 document.getElementById('createBtn').onclick = createTask;
 document.getElementById('refreshBtn').onclick = async () => { await loadSummary(); await loadTasks(); };
+document.getElementById('healthBtn').onclick = checkHealth;
+document.getElementById('applyFilterBtn').onclick = loadTasks;
 document.getElementById('confirmBtn').onclick = () => confirmTask(true);
 document.getElementById('rejectBtn').onclick = () => confirmTask(false);
 
-loadSummary().then(loadTasks);
+loadSummary().then(async () => { await loadTasks(); await checkHealth(); });
 </script>
 </body>
 </html>

@@ -39,10 +39,7 @@ func (s *MemoryStore) List(filter types.TaskFilter) ([]types.Task, error) {
 	defer s.mu.RUnlock()
 	items := make([]types.Task, 0, len(s.tasks))
 	for _, task := range s.tasks {
-		if filter.Status != "" && task.Status != filter.Status {
-			continue
-		}
-		if filter.Scene != "" && task.Request.Scene != filter.Scene {
+		if !matchTaskFilter(*task, filter) {
 			continue
 		}
 		items = append(items, *task)
@@ -50,13 +47,5 @@ func (s *MemoryStore) List(filter types.TaskFilter) ([]types.Task, error) {
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].CreatedAt.After(items[j].CreatedAt)
 	})
-	start := filter.Offset
-	if start > len(items) {
-		return []types.Task{}, nil
-	}
-	end := len(items)
-	if filter.Limit > 0 && start+filter.Limit < end {
-		end = start + filter.Limit
-	}
-	return items[start:end], nil
+	return paginate(items, filter), nil
 }

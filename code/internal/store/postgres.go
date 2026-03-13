@@ -118,9 +118,12 @@ func (s *PostgresStore) List(filter types.TaskFilter) ([]types.Task, error) {
 		if err := json.Unmarshal(payload, &task); err != nil {
 			return nil, err
 		}
+		if !matchTaskFilter(task, filter) {
+			continue
+		}
 		items = append(items, task)
 	}
-	return items, nil
+	return paginate(items, filter), nil
 }
 
 func DefaultPostgresDSN() string {

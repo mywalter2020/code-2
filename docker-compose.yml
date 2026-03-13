@@ -26,6 +26,7 @@ services:
       JUYU_CONFIG: /app/configs/agents.yaml
       JUYU_STORE: postgres
       JUYU_PG_DSN: host=postgres port=5432 user=postgres password=postgres dbname=juyu sslmode=disable timezone=Asia/Shanghai
+      JUYU_API_KEY: ${JUYU_API_KEY:-}
     ports:
       - "8080:8080"
     healthcheck:

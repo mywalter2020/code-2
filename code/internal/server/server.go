@@ -23,10 +23,11 @@ type Server struct {
 	credentialStore interface {
 		List() []types.AdapterCredentials
 	}
+	apiKey string
 }
 
-func New(orc *orchestrator.Orchestrator, rg *registry.Registry, abilityMetadata []types.AbilityMetadata, masterMetadata []types.MasterAgentMetadata, bindingViews []types.BindingView) *Server {
-	return &Server{orc: orc, rg: rg, abilityMetadata: abilityMetadata, masterMetadata: masterMetadata, bindingViews: bindingViews}
+func New(orc *orchestrator.Orchestrator, rg *registry.Registry, abilityMetadata []types.AbilityMetadata, masterMetadata []types.MasterAgentMetadata, bindingViews []types.BindingView, apiKey string) *Server {
+	return &Server{orc: orc, rg: rg, abilityMetadata: abilityMetadata, masterMetadata: masterMetadata, bindingViews: bindingViews, apiKey: apiKey}
 }
 
 func (s *Server) Register(mux *http.ServeMux) {
@@ -47,6 +48,9 @@ func (s *Server) Register(mux *http.ServeMux) {
 func (s *Server) handleExecute(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeAPI(w, http.StatusMethodNotAllowed, false, statusCodeToErr(http.StatusMethodNotAllowed), "", "method not allowed", nil)
+		return
+	}
+	if !s.requireWriteAuth(w, r) {
 		return
 	}
 
@@ -101,6 +105,9 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(parts) == 2 && parts[1] == "confirm" && r.Method == http.MethodPost {
+		if !s.requireWriteAuth(w, r) {
+			return
+		}
 		var req types.ConfirmRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
@@ -115,10 +122,16 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(parts) == 2 && parts[1] == "cancel" && r.Method == http.MethodPost {
+		if !s.requireWriteAuth(w, r) {
+			return
+		}
 		s.handleTaskCancel(w, r, taskID)
 		return
 	}
 	if len(parts) == 2 && parts[1] == "retry" && r.Method == http.MethodPost {
+		if !s.requireWriteAuth(w, r) {
+			return
+		}
 		s.handleTaskRetry(w, r, taskID)
 		return
 	}

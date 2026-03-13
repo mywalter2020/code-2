@@ -90,6 +90,15 @@ paths:
           name: scene
           schema: { type: string }
         - in: query
+          name: operator
+          schema: { type: string }
+        - in: query
+          name: platform
+          schema: { type: string }
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
           name: limit
           schema: { type: integer }
         - in: query

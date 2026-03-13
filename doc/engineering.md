@@ -17,6 +17,8 @@ The repository now includes:
 - memory / sqlite / postgres storage modes
 - docker-compose 联调已跑通（app + postgres）
 - app healthcheck 已改为 curl 并在镜像内补齐依赖
+- 新增可选写操作 API Key 鉴权（JUYU_API_KEY）
+- 任务列表新增 status / scene / operator / platform / q 多条件筛选
 
 ## Suggested next steps
 

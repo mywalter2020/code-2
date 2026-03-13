@@ -10,6 +10,8 @@ func statusCodeToErr(status int) string {
 		return types.ErrCodeNotFound
 	case 405:
 		return types.ErrCodeMethodNotAllowed
+	case 401:
+		return types.ErrCodeBadRequest
 	default:
 		return types.ErrCodeInternal
 	}

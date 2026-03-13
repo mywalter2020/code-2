@@ -85,6 +85,7 @@ func main() {
 		server.BuildAbilityMetadata(cfg.AbilityAgents),
 		server.BuildMasterMetadata(cfg.MasterAgents),
 		server.BuildBindingViews(cfg.Bindings),
+		config.GetEnv("JUYU_API_KEY", ""),
 	)
 	server.AttachAdapterRuntime(api, adapterRegistry, credentialStore)
 

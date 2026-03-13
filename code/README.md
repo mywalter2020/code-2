@@ -12,7 +12,8 @@
 - 任务流（task_id / 状态 / 查询 / 确认 / cancel / retry）
 - 预览数据结构（preview）
 - 商品 / 发布 / 确认三类业务对象模型
-- 最小前端演示骨架（`/ui/`，含任务概览 / 预览卡片 / 确认操作）
+- 最小前端演示骨架（`/ui/`，含任务概览 / 预览卡片 / 确认操作 / 筛选）
+- 可选 API Key 写操作鉴权（`JUYU_API_KEY`）
 - 执行日志与失败状态
 - memory / sqlite / postgres 三种任务存储模式
 
@@ -62,7 +63,7 @@
 按场景触发大 Agent 编排执行
 
 ### `GET /tasks`
-查看任务列表
+查看任务列表，支持 `status / scene / operator / platform / q / limit / offset`
 
 ### `GET /tasks/{task_id}`
 查询任务详情、日志、预览、状态
@@ -114,6 +115,15 @@ go run ./cmd/platform
 ```bash
 docker compose up --build -d
 curl http://127.0.0.1:8080/healthz
+```
+
+启用写操作 API Key（可选）：
+
+```bash
+JUYU_API_KEY=your-secret-key docker compose up --build -d
+curl -H 'X-API-Key: your-secret-key' -H 'Content-Type: application/json' \
+  -d '{"scene":"product","input":"demo","payload":{"platform":"alibaba"}}' \
+  http://127.0.0.1:8080/execute
 ```
 
 ## 当前说明
