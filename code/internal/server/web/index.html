@@ -18,9 +18,19 @@
     .row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .muted { color: #9fb0d8; font-size: 13px; }
     .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #1d2b57; margin-right: 8px; }
-    .task { padding: 12px; border-radius: 12px; background: #0d1430; border: 1px solid #24305d; margin-top: 10px; }
+    .task { padding: 12px; border-radius: 12px; background: #0d1430; border: 1px solid #24305d; margin-top: 10px; cursor: pointer; }
     .task strong { display: block; }
-    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .row { grid-template-columns: 1fr; } }
+    .status { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .status.success { background: #123b2b; color: #66f0aa; }
+    .status.pending_confirm { background: #4a3410; color: #ffd36b; }
+    .status.running { background: #123557; color: #7fd2ff; }
+    .status.failed, .status.rejected, .status.canceled { background: #4c1f2b; color: #ff8ea2; }
+    .kv { display: grid; grid-template-columns: 140px 1fr; gap: 8px; margin-top: 8px; align-items: start; }
+    .kv div:first-child { color: #9fb0d8; }
+    .preview-box { background: #0a0f23; border-radius: 12px; padding: 12px; margin-top: 10px; }
+    .checklist li { margin: 6px 0; }
+    .mini-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    @media (max-width: 900px) { .grid, .mini-grid { grid-template-columns: 1fr; } .row { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -70,7 +80,9 @@
           <button class="secondary" id="confirmBtn">确认继续</button>
           <button class="secondary" id="rejectBtn">驳回</button>
         </div>
-        <h3 style="margin-top:16px;">预览</h3>
+        <h3 style="margin-top:16px;">业务预览</h3>
+        <div id="previewCard" class="preview-box muted">暂无</div>
+        <h3>原始预览 JSON</h3>
         <pre id="preview">暂无</pre>
         <h3>日志</h3>
         <pre id="logs">暂无</pre>
@@ -90,6 +102,62 @@ function showJSON(id, data) {
   document.getElementById(id).textContent = JSON.stringify(data, null, 2);
 }
 
+function escapeHtml(value) {
+  return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
+function renderStatus(status) {
+  return `<span class="status ${status}">${status}</span>`;
+}
+
+function renderPreviewCard(preview) {
+  const fields = preview?.fields || {};
+  const product = fields.product || {};
+  const publish = fields.publish || {};
+  const confirmation = fields.confirmation || {};
+  const checklist = (confirmation.checklist || []).map(item => `<li>${escapeHtml(item)}</li>`).join('');
+  return `
+    <div class="mini-grid">
+      <div>
+        <h3>商品</h3>
+        <div class="kv"><div>标题</div><div>${escapeHtml(product.title || '-')}</div></div>
+        <div class="kv"><div>SKU</div><div>${escapeHtml(product.sku || '-')}</div></div>
+        <div class="kv"><div>品牌</div><div>${escapeHtml(product.brand || '-')}</div></div>
+        <div class="kv"><div>价格</div><div>${escapeHtml(product.price || '-')} ${escapeHtml(product.currency || '')}</div></div>
+      </div>
+      <div>
+        <h3>发布</h3>
+        <div class="kv"><div>平台</div><div>${escapeHtml(publish.platform || '-')}</div></div>
+        <div class="kv"><div>模式</div><div>${escapeHtml(publish.publish_mode || '-')}</div></div>
+        <div class="kv"><div>内容摘要</div><div>${escapeHtml((publish.content || '').slice(0, 80) || '-')}</div></div>
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <h3>确认</h3>
+      <div class="kv"><div>状态</div><div>${escapeHtml(confirmation.status || '-')}</div></div>
+      <div class="kv"><div>说明</div><div>${escapeHtml(confirmation.preview_summary || '-')}</div></div>
+      <ul class="checklist">${checklist || '<li>-</li>'}</ul>
+    </div>
+  `;
+}
+
+function renderDetailCard(task) {
+  return `
+    <div class="kv"><div>任务ID</div><div>${escapeHtml(task.id || '-')}</div></div>
+    <div class="kv"><div>场景</div><div>${escapeHtml(task.request?.scene || '-')}</div></div>
+    <div class="kv"><div>输入</div><div>${escapeHtml(task.request?.input || '-')}</div></div>
+    <div class="kv"><div>状态</div><div>${renderStatus(task.status || 'unknown')}</div></div>
+    <div class="kv"><div>当前步骤</div><div>${escapeHtml(task.current_step || 0)}</div></div>
+    <div class="kv"><div>主控 Agent</div><div>${escapeHtml(task.master_agent || '-')}</div></div>
+    <div class="kv"><div>需要确认</div><div>${task.needs_confirm ? '是' : '否'}</div></div>
+    <div class="kv"><div>更新时间</div><div>${escapeHtml(task.updated_at || '-')}</div></div>
+  `;
+}
+
+function renderLogs(logs) {
+  return (logs || []).map(log => `${log.time} [step ${log.step}] ${log.agent} / ${log.action} :: ${log.message}`).join('\n');
+}
+
 async function loadSummary() {
   const data = await api('/tasks/summary');
   const summary = data.data || {};
@@ -104,8 +172,8 @@ async function loadTasks() {
   el.innerHTML = items.map(task => `
     <div class="task" onclick="selectTask('${task.id}')">
       <strong>${task.id}</strong>
-      <div>${task.request?.input || ''}</div>
-      <div class="muted">scene=${task.request?.scene} · status=${task.status} · step=${task.current_step}</div>
+      <div>${escapeHtml(task.request?.input || '')}</div>
+      <div class="muted">scene=${escapeHtml(task.request?.scene || '')} · ${renderStatus(task.status)} · step=${task.current_step}</div>
     </div>
   `).join('') || '<div class="muted">暂无任务</div>';
 }
@@ -115,9 +183,11 @@ async function selectTask(taskId) {
   const detail = await api(`/tasks/${taskId}`);
   const preview = await api(`/tasks/${taskId}/preview`);
   const logs = await api(`/tasks/${taskId}/logs`);
-  showJSON('detail', detail.data || detail);
+  const task = detail.data || {};
+  document.getElementById('detail').innerHTML = renderDetailCard(task);
+  document.getElementById('previewCard').innerHTML = renderPreviewCard(preview.data?.preview || {});
   showJSON('preview', preview.data || preview);
-  showJSON('logs', logs.data || logs);
+  document.getElementById('logs').textContent = renderLogs(logs.data?.logs || []);
 }
 window.selectTask = selectTask;
 

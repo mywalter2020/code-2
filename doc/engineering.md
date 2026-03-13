@@ -10,7 +10,7 @@ The repository now includes:
 - task flow with confirmation
 - preview + logs + failure states
 - 商品 / 发布 / 确认业务对象模型
-- 最小前端演示骨架（/ui/）
+- 最小前端演示骨架（/ui/，已支持任务状态徽标、业务预览卡片、确认操作）
 - HTTP service endpoints
 - local Go toolchain support
 - Makefile / Dockerfile / docker-compose / .gitignore

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: JuYu AI Platform API
-  version: 0.1.0
+  version: 0.2.0
 servers:
   - url: http://localhost:8080
 paths:
@@ -10,7 +10,7 @@ paths:
       summary: Redirect to demo UI
       responses:
         '302':
-          description: Redirect
+          description: Redirect to /ui/
   /ui/:
     get:
       summary: Demo UI entry
@@ -23,12 +23,22 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
   /abilities:
     get:
       summary: List ability agents
       responses:
         '200':
           description: OK
+  /abilities/metadata:
+    get:
+      summary: Get ability metadata
+      responses:
+        '200':
+          description: Ability metadata
   /agents/metadata:
     get:
       summary: Get master agent metadata
@@ -41,6 +51,18 @@ paths:
       responses:
         '200':
           description: Binding metadata
+  /adapters/health:
+    get:
+      summary: Get adapter health list
+      responses:
+        '200':
+          description: Adapter health list
+  /adapters/credentials:
+    get:
+      summary: Get adapter credential field model
+      responses:
+        '200':
+          description: Adapter credentials model
   /execute:
     post:
       summary: Execute a scene task
@@ -53,6 +75,10 @@ paths:
       responses:
         '200':
           description: Task accepted or completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
   /tasks:
     get:
       summary: List tasks
@@ -130,6 +156,12 @@ paths:
           name: taskId
           required: true
           schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmRequest'
       responses:
         '200':
           description: Updated task
@@ -157,13 +189,108 @@ paths:
           description: Updated task
 components:
   schemas:
+    APIResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        error: { type: string }
+        code: { type: string }
+        data: { type: object, additionalProperties: true }
     Request:
       type: object
       properties:
-        scene:
-          type: string
-        input:
-          type: string
+        scene: { type: string }
+        input: { type: string }
+        operator: { type: string }
         payload:
           type: object
           additionalProperties: true
+    ConfirmRequest:
+      type: object
+      properties:
+        approved: { type: boolean }
+        comment: { type: string }
+        approver: { type: string }
+    Product:
+      type: object
+      properties:
+        id: { type: string }
+        sku: { type: string }
+        title: { type: string }
+        subtitle: { type: string }
+        description: { type: string }
+        category: { type: string }
+        brand: { type: string }
+        price: { type: number }
+        currency: { type: string }
+        images:
+          type: array
+          items: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+    PublishRequest:
+      type: object
+      properties:
+        platform: { type: string }
+        channel: { type: string }
+        operator: { type: string }
+        content: { type: string }
+        publish_mode: { type: string }
+        product:
+          $ref: '#/components/schemas/Product'
+        page:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+    ConfirmationPayload:
+      type: object
+      properties:
+        task_id: { type: string }
+        required: { type: boolean }
+        status: { type: string }
+        reviewer: { type: string }
+        comment: { type: string }
+        preview_summary: { type: string }
+        checklist:
+          type: array
+          items: { type: string }
+        snapshot:
+          type: object
+          additionalProperties: true
+    Preview:
+      type: object
+      properties:
+        title: { type: string }
+        summary: { type: string }
+        fields:
+          type: object
+          properties:
+            scene: { type: string }
+            input: { type: string }
+            product:
+              $ref: '#/components/schemas/Product'
+            publish:
+              $ref: '#/components/schemas/PublishRequest'
+            confirmation:
+              $ref: '#/components/schemas/ConfirmationPayload'
+          additionalProperties: true
+    Task:
+      type: object
+      properties:
+        id: { type: string }
+        master_agent: { type: string }
+        status: { type: string }
+        current_step: { type: integer }
+        needs_confirm: { type: boolean }
+        error_message: { type: string }
+        confirm_comment: { type: string }
+        operator: { type: string }
+        approver: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        preview:
+          $ref: '#/components/schemas/Preview'
