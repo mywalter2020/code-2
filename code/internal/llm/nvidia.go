@@ -14,11 +14,12 @@ import (
 )
 
 type NVIDIAClient struct {
-	url    string
-	key    string
-	model  string
-	cfg    ContentGenConfig
-	client *http.Client
+	url     string
+	key     string
+	model   string
+	cfg     ContentGenConfig
+	pageCfg PageGenConfig
+	client  *http.Client
 }
 
 type nvidiaMessage struct {
@@ -51,10 +52,11 @@ func NewNVIDIAClientFromEnv() *NVIDIAClient {
 		return nil
 	}
 	return &NVIDIAClient{
-		url:   url,
-		key:   key,
-		model: model,
-		cfg:   cfg,
+		url:     url,
+		key:     key,
+		model:   model,
+		cfg:     cfg,
+		pageCfg: LoadPageGenConfig(),
 		client: &http.Client{
 			Timeout: 45 * time.Second,
 		},
@@ -82,14 +84,34 @@ func (c *NVIDIAClient) GenerateProductContent(ctx context.Context, title, descri
 	prompt = strings.ReplaceAll(prompt, "{{title}}", title)
 	prompt = strings.ReplaceAll(prompt, "{{description}}", description)
 	prompt = strings.ReplaceAll(prompt, "{{platform}}", platform)
+	return c.complete(ctx, c.cfg.SystemPrompt, prompt, c.cfg.Temperature, c.cfg.MaxTokens)
+}
+
+func (c *NVIDIAClient) ConfigPage() PageGenConfig {
+	return c.pageCfg
+}
+
+func (c *NVIDIAClient) GeneratePage(ctx context.Context, title, description, platform string) (map[string]any, error) {
+	if !c.Enabled() {
+		return nil, fmt.Errorf("nvidia client not configured")
+	}
+	prompt := pagePrompt(c.pageCfg, title, description, platform)
+	raw, err := c.complete(ctx, c.pageCfg.SystemPrompt, prompt, c.pageCfg.Temperature, c.pageCfg.MaxTokens)
+	if err != nil {
+		return nil, err
+	}
+	return normalizePageJSON(raw, title), nil
+}
+
+func (c *NVIDIAClient) complete(ctx context.Context, systemPrompt, prompt string, temperature float64, maxTokens int) (string, error) {
 	body := nvidiaRequest{
 		Model: c.model,
 		Messages: []nvidiaMessage{
-			{Role: "system", Content: c.cfg.SystemPrompt},
+			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: prompt},
 		},
-		Temperature: c.cfg.Temperature,
-		MaxTokens:   c.cfg.MaxTokens,
+		Temperature: temperature,
+		MaxTokens:   maxTokens,
 	}
 	payload, err := json.Marshal(body)
 	if err != nil {
