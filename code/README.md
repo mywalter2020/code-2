@@ -14,7 +14,7 @@
 - 商品 / 发布 / 确认三类业务对象模型
 - 最小前端演示骨架（`/ui/`，含任务概览 / 预览卡片 / 确认操作 / 筛选）
 - 可选 API Key 写操作鉴权（`JUYU_API_KEY`）
-- `content_gen` 已抽象为通用 provider 接口（当前支持 `stub` / `nvidia`）
+- `content_gen` / `page_gen` 已抽象为通用 provider 接口（当前支持 `stub` / `nvidia` / `openai_compat`）
 - 执行日志与失败状态
 - memory / sqlite / postgres 三种任务存储模式
 
@@ -164,6 +164,10 @@ export NVIDIA_KEY=your-key
 ```bash
 export CONTENT_GEN_SYSTEM_PROMPT='你擅长生成电商商品发布文案，输出准确、简洁、可直接使用。'
 export CONTENT_GEN_PROMPT_TEMPLATE='你是电商运营文案助手。请为以下商品生成一段简洁但可直接用于发布页的中文商品文案，控制在120字内。输出纯文本，不要加标题。商品标题：{{title}}。商品描述：{{description}}。目标平台：{{platform}}。'
+export PAGE_GEN_PROVIDER=nvidia
+export PAGE_GEN_MODEL=meta/llama-3.1-405b-instruct
+export PAGE_GEN_SYSTEM_PROMPT='你擅长生成电商商品页面结构，输出 JSON，字段必须稳定。'
+export PAGE_GEN_PROMPT_TEMPLATE='请基于以下商品信息生成一个 JSON 页面草图。字段必须包含 title 和 sections，sections 为字符串数组。不要输出 markdown，不要输出解释。商品标题：{{title}}。商品描述：{{description}}。目标平台：{{platform}}。'
 ```
 
 未配置完整凭据时：

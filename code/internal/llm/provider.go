@@ -14,6 +14,11 @@ func NewContentGeneratorFromEnv() ContentGenerator {
 	switch cfg.Provider {
 	case "stub", "mock":
 		return NewStubGenerator(cfg)
+	case "openai_compat", "openai-compatible":
+		if client := NewOpenAICompatClientFromEnv(); client != nil {
+			return client
+		}
+		return NewStubGenerator(cfg)
 	case "nvidia", "":
 		if client := NewNVIDIAClientFromEnv(); client != nil {
 			return client
