@@ -11,6 +11,8 @@
 - HTTP API 服务入口
 - 任务流（task_id / 状态 / 查询 / 确认 / cancel / retry）
 - 预览数据结构（preview）
+- 商品 / 发布 / 确认三类业务对象模型
+- 最小前端演示骨架（`/ui/`）
 - 执行日志与失败状态
 - memory / sqlite / postgres 三种任务存储模式
 
@@ -49,6 +51,12 @@
 
 ### `GET /adapters/credentials`
 查看平台凭据配置模型（示例）
+
+### `GET /`
+跳转到最小前端演示页
+
+### `GET /ui/`
+最小前端演示骨架，可直接创建任务、查看预览、确认继续
 
 ### `POST /execute`
 按场景触发大 Agent 编排执行
@@ -110,10 +118,25 @@ curl http://127.0.0.1:8080/healthz
 
 ## 当前说明
 
+## 业务对象模型
+
+当前预览和执行链路统一使用三类业务对象：
+
+- `types.Product`：商品基础信息
+- `types.PublishRequest`：发布动作载荷
+- `types.ConfirmationPayload`：人工确认快照
+
+编排器会在 `preview.fields` 中输出：
+
+- `product`
+- `publish`
+- `confirmation`
+
+这样前端演示和后续真实平台接入可以共用一套数据骨架。
+
 当前实现还是原型版：
-- 任务存储仍为内存版
 - 小 Agent 仍以 stub/模拟能力为主
 - 尚未接入真实模型或真实平台 API
-- 尚未支持鉴权、数据库、消息队列、并行工作流
+- 尚未支持鉴权、消息队列、并行工作流
 
 但整体骨架已经适合作为后续继续开发的基础项目结构。

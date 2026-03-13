@@ -5,6 +5,9 @@ RUN cd /app/code && go mod download && go build -o /app/platform ./cmd/platform
 
 FROM debian:bookworm-slim
 WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/platform /app/platform
 COPY configs /app/configs
 ENV JUYU_CONFIG=/app/configs/agents.yaml

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JuYu AI Platform Demo</title>
+  <style>
+    :root { color-scheme: light dark; font-family: Inter, system-ui, sans-serif; }
+    body { margin: 0; background: #0b1020; color: #e8ecf3; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 24px; }
+    .grid { display: grid; grid-template-columns: 360px 1fr; gap: 20px; }
+    .card { background: #121933; border: 1px solid #24305d; border-radius: 16px; padding: 16px; }
+    h1,h2,h3 { margin: 0 0 12px; }
+    input, textarea, select, button { width: 100%; box-sizing: border-box; border-radius: 10px; border: 1px solid #314277; background: #0d1430; color: #fff; padding: 10px 12px; margin-top: 8px; }
+    button { cursor: pointer; background: #4c7dff; border: none; font-weight: 600; }
+    button.secondary { background: #1b2547; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #0a0f23; padding: 12px; border-radius: 12px; overflow: auto; }
+    .row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .muted { color: #9fb0d8; font-size: 13px; }
+    .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #1d2b57; margin-right: 8px; }
+    .task { padding: 12px; border-radius: 12px; background: #0d1430; border: 1px solid #24305d; margin-top: 10px; }
+    .task strong { display: block; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>JuYu AI Platform 最小演示</h1>
+    <p class="muted">覆盖商品 → 预览 → 人工确认 → 发布/上下架 的最小联调路径。</p>
+    <div class="grid">
+      <div class="card">
+        <h2>创建任务</h2>
+        <label>场景
+          <select id="scene">
+            <option value="product">product</option>
+            <option value="content">content</option>
+            <option value="competition">competition</option>
+          </select>
+        </label>
+        <label>商品标题<input id="title" value="演示商品：JuYu 智能水杯" /></label>
+        <div class="row">
+          <label>平台<select id="platform"><option value="alibaba">alibaba</option><option value="taobao">taobao</option><option value="douyin">douyin</option></select></label>
+          <label>价格<input id="price" value="99" /></label>
+        </div>
+        <div class="row">
+          <label>SKU<input id="sku" value="DEMO-SKU-001" /></label>
+          <label>品牌<input id="brand" value="JuYu" /></label>
+        </div>
+        <label>描述<textarea id="description">主打保温、饮水提醒、礼盒包装。</textarea></label>
+        <button id="createBtn">创建并执行</button>
+        <div style="height:10px"></div>
+        <button class="secondary" id="refreshBtn">刷新任务列表</button>
+      </div>
+
+      <div class="card">
+        <h2>任务面板</h2>
+        <div id="summary" class="muted">加载中...</div>
+        <div id="tasks"></div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:20px;">
+      <div class="card">
+        <h2>任务详情</h2>
+        <div id="detail" class="muted">点击右侧任务查看。</div>
+      </div>
+      <div class="card">
+        <h2>预览 / 日志</h2>
+        <div class="row">
+          <button class="secondary" id="confirmBtn">确认继续</button>
+          <button class="secondary" id="rejectBtn">驳回</button>
+        </div>
+        <h3 style="margin-top:16px;">预览</h3>
+        <pre id="preview">暂无</pre>
+        <h3>日志</h3>
+        <pre id="logs">暂无</pre>
+      </div>
+    </div>
+  </div>
+
+<script>
+let currentTaskId = "";
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options });
+  return await res.json();
+}
+
+function showJSON(id, data) {
+  document.getElementById(id).textContent = JSON.stringify(data, null, 2);
+}
+
+async function loadSummary() {
+  const data = await api('/tasks/summary');
+  const summary = data.data || {};
+  document.getElementById('summary').innerHTML = `<span class="pill">total: ${summary.total ?? 0}</span>` +
+    Object.entries(summary.summary || {}).map(([k,v]) => `<span class="pill">${k}: ${v}</span>`).join('');
+}
+
+async function loadTasks() {
+  const data = await api('/tasks?limit=20');
+  const items = data.data?.items || [];
+  const el = document.getElementById('tasks');
+  el.innerHTML = items.map(task => `
+    <div class="task" onclick="selectTask('${task.id}')">
+      <strong>${task.id}</strong>
+      <div>${task.request?.input || ''}</div>
+      <div class="muted">scene=${task.request?.scene} · status=${task.status} · step=${task.current_step}</div>
+    </div>
+  `).join('') || '<div class="muted">暂无任务</div>';
+}
+
+async function selectTask(taskId) {
+  currentTaskId = taskId;
+  const detail = await api(`/tasks/${taskId}`);
+  const preview = await api(`/tasks/${taskId}/preview`);
+  const logs = await api(`/tasks/${taskId}/logs`);
+  showJSON('detail', detail.data || detail);
+  showJSON('preview', preview.data || preview);
+  showJSON('logs', logs.data || logs);
+}
+window.selectTask = selectTask;
+
+async function createTask() {
+  const payload = {
+    title: document.getElementById('title').value,
+    description: document.getElementById('description').value,
+    price: Number(document.getElementById('price').value),
+    sku: document.getElementById('sku').value,
+    brand: document.getElementById('brand').value,
+    platform: document.getElementById('platform').value,
+    tags: ['demo', 'frontend'],
+    images: ['https://dummyimage.com/600x400/4c7dff/ffffff&text=JuYu']
+  };
+  const body = {
+    scene: document.getElementById('scene').value,
+    input: payload.title,
+    operator: 'demo-ui',
+    payload
+  };
+  const data = await api('/execute', { method: 'POST', body: JSON.stringify(body) });
+  await loadSummary();
+  await loadTasks();
+  if (data.data?.task_id) {
+    await selectTask(data.data.task_id);
+  } else {
+    showJSON('detail', data);
+  }
+}
+
+async function confirmTask(approved) {
+  if (!currentTaskId) return;
+  await api(`/tasks/${currentTaskId}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ approved, comment: approved ? 'demo ui confirm' : 'demo ui reject', approver: 'demo-ui' })
+  });
+  await loadSummary();
+  await loadTasks();
+  await selectTask(currentTaskId);
+}
+
+document.getElementById('createBtn').onclick = createTask;
+document.getElementById('refreshBtn').onclick = async () => { await loadSummary(); await loadTasks(); };
+document.getElementById('confirmBtn').onclick = () => confirmTask(true);
+document.getElementById('rejectBtn').onclick = () => confirmTask(false);
+
+loadSummary().then(loadTasks);
+</script>
+</body>
+</html>

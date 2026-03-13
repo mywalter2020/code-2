@@ -5,6 +5,18 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
+  /:
+    get:
+      summary: Redirect to demo UI
+      responses:
+        '302':
+          description: Redirect
+  /ui/:
+    get:
+      summary: Demo UI entry
+      responses:
+        '200':
+          description: HTML page
   /healthz:
     get:
       summary: Health check

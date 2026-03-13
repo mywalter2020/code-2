@@ -16,8 +16,13 @@ type Server struct {
 	abilityMetadata []types.AbilityMetadata
 	masterMetadata  []types.MasterAgentMetadata
 	bindingViews    []types.BindingView
-	adapterRegistry interface{ ListNames() []string; Get(string) (interface{}, error) }
-	credentialStore interface{ List() []types.AdapterCredentials }
+	adapterRegistry interface {
+		ListNames() []string
+		Get(string) (interface{}, error)
+	}
+	credentialStore interface {
+		List() []types.AdapterCredentials
+	}
 }
 
 func New(orc *orchestrator.Orchestrator, rg *registry.Registry, abilityMetadata []types.AbilityMetadata, masterMetadata []types.MasterAgentMetadata, bindingViews []types.BindingView) *Server {
@@ -36,6 +41,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/tasks/summary", s.handleTaskSummary)
 	mux.HandleFunc("/tasks", s.handleTaskList)
 	mux.HandleFunc("/tasks/", s.handleTasks)
+	s.registerUI(mux)
 }
 
 func (s *Server) handleExecute(w http.ResponseWriter, r *http.Request) {

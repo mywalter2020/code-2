@@ -9,11 +9,14 @@ The repository now includes:
 - config-driven workflows
 - task flow with confirmation
 - preview + logs + failure states
+- 商品 / 发布 / 确认业务对象模型
+- 最小前端演示骨架（/ui/）
 - HTTP service endpoints
 - local Go toolchain support
 - Makefile / Dockerfile / docker-compose / .gitignore
 - memory / sqlite / postgres storage modes
 - docker-compose 联调已跑通（app + postgres）
+- app healthcheck 已改为 curl 并在镜像内补齐依赖
 
 ## Suggested next steps
 

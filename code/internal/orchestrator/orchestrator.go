@@ -287,9 +287,13 @@ func (o *Orchestrator) runBinding(ctx context.Context, req types.Request, bindin
 }
 
 func buildPreview(req types.Request, results []types.Response) *types.Preview {
+	ctx := types.BuildBusinessContext(req, results)
 	fields := map[string]any{
-		"scene": req.Scene,
-		"input": req.Input,
+		"scene":        req.Scene,
+		"input":        req.Input,
+		"product":      ctx.Product,
+		"publish":      ctx.Publish,
+		"confirmation": ctx.Confirmation,
 	}
 	for _, r := range results {
 		switch r.Agent {
