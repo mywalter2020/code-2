@@ -148,6 +148,15 @@ export JUYU_DOUYIN_CLIENT_SECRET=xxx
 export NVIDIA_URL=https://integrate.api.nvidia.com/v1/chat/completions
 export NVIDIA_KEY=your-key
 export NVIDIA_MODEL=meta/llama-3.1-405b-instruct
+export CONTENT_GEN_TEMPERATURE=0.4
+export CONTENT_GEN_MAX_TOKENS=220
+```
+
+如果要调 prompt，也可以直接改环境变量：
+
+```bash
+export CONTENT_GEN_SYSTEM_PROMPT='你擅长生成电商商品发布文案，输出准确、简洁、可直接使用。'
+export CONTENT_GEN_PROMPT_TEMPLATE='你是电商运营文案助手。请为以下商品生成一段简洁但可直接用于发布页的中文商品文案，控制在120字内。输出纯文本，不要加标题。商品标题：{{title}}。商品描述：{{description}}。目标平台：{{platform}}。'
 ```
 
 未配置完整凭据时：

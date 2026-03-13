@@ -37,6 +37,11 @@ services:
       NVIDIA_URL: ${NVIDIA_URL:-}
       NVIDIA_KEY: ${NVIDIA_KEY:-}
       NVIDIA_MODEL: ${NVIDIA_MODEL:-meta/llama-3.1-405b-instruct}
+      CONTENT_GEN_PROVIDER: ${CONTENT_GEN_PROVIDER:-nvidia}
+      CONTENT_GEN_TEMPERATURE: ${CONTENT_GEN_TEMPERATURE:-0.4}
+      CONTENT_GEN_MAX_TOKENS: ${CONTENT_GEN_MAX_TOKENS:-220}
+      CONTENT_GEN_SYSTEM_PROMPT: ${CONTENT_GEN_SYSTEM_PROMPT:-你擅长生成电商商品发布文案，输出准确、简洁、可直接使用。}
+      CONTENT_GEN_PROMPT_TEMPLATE: ${CONTENT_GEN_PROMPT_TEMPLATE:-你是电商运营文案助手。请为以下商品生成一段简洁但可直接用于发布页的中文商品文案，控制在120字内。输出纯文本，不要加标题。商品标题：{{title}}。商品描述：{{description}}。目标平台：{{platform}}。}
     ports:
       - "8080:8080"
     healthcheck:

@@ -32,6 +32,17 @@ func (a *ContentAgent) Run(ctx context.Context, req types.Request) (types.Respon
 		content = generated
 		mode = "nvidia"
 	}
+	configView := map[string]any{"provider": "stub", "enabled": false}
+	if a.llm != nil {
+		cfg := a.llm.Config()
+		configView = map[string]any{
+			"provider":    cfg.Provider,
+			"enabled":     a.llm.Enabled(),
+			"model":       cfg.Model,
+			"temperature": cfg.Temperature,
+			"max_tokens":  cfg.MaxTokens,
+		}
+	}
 	return types.Response{
 		Agent:   a.Code(),
 		Success: true,
@@ -44,6 +55,7 @@ func (a *ContentAgent) Run(ctx context.Context, req types.Request) (types.Respon
 			"product":      biz.Product,
 			"content_mode": mode,
 			"platform":     platform,
+			"llm_config":   configView,
 		},
 	}, nil
 }

@@ -17,6 +17,7 @@ type NVIDIAClient struct {
 	url    string
 	key    string
 	model  string
+	cfg    ContentGenConfig
 	client *http.Client
 }
 
@@ -44,7 +45,8 @@ type nvidiaResponse struct {
 func NewNVIDIAClientFromEnv() *NVIDIAClient {
 	url := strings.TrimSpace(config.GetEnv("NVIDIA_URL", ""))
 	key := strings.TrimSpace(config.GetEnv("NVIDIA_KEY", ""))
-	model := strings.TrimSpace(config.GetEnv("NVIDIA_MODEL", config.GetEnv("NVIDIA_DEFAULT_MODEL", "meta/llama-3.1-405b-instruct")))
+	cfg := LoadContentGenConfig()
+	model := cfg.Model
 	if url == "" || key == "" || model == "" {
 		return nil
 	}
@@ -52,6 +54,7 @@ func NewNVIDIAClientFromEnv() *NVIDIAClient {
 		url:   url,
 		key:   key,
 		model: model,
+		cfg:   cfg,
 		client: &http.Client{
 			Timeout: 45 * time.Second,
 		},
@@ -62,19 +65,29 @@ func (c *NVIDIAClient) Enabled() bool {
 	return c != nil && c.url != "" && c.key != "" && c.model != ""
 }
 
+func (c *NVIDIAClient) Config() ContentGenConfig {
+	if c == nil {
+		return LoadContentGenConfig()
+	}
+	return c.cfg
+}
+
 func (c *NVIDIAClient) GenerateProductContent(ctx context.Context, title, description, platform string) (string, error) {
 	if !c.Enabled() {
 		return "", fmt.Errorf("nvidia client not configured")
 	}
-	prompt := fmt.Sprintf("你是电商运营文案助手。请为以下商品生成一段简洁但可直接用于发布页的中文商品文案，控制在120字内。输出纯文本，不要加标题。商品标题：%s。商品描述：%s。目标平台：%s。", title, description, platform)
+	prompt := c.cfg.PromptTemplate
+	prompt = strings.ReplaceAll(prompt, "{{title}}", title)
+	prompt = strings.ReplaceAll(prompt, "{{description}}", description)
+	prompt = strings.ReplaceAll(prompt, "{{platform}}", platform)
 	body := nvidiaRequest{
 		Model: c.model,
 		Messages: []nvidiaMessage{
-			{Role: "system", Content: "你擅长生成电商商品发布文案，输出准确、简洁、可直接使用。"},
+			{Role: "system", Content: c.cfg.SystemPrompt},
 			{Role: "user", Content: prompt},
 		},
-		Temperature: 0.4,
-		MaxTokens:   220,
+		Temperature: c.cfg.Temperature,
+		MaxTokens:   c.cfg.MaxTokens,
 	}
 	payload, err := json.Marshal(body)
 	if err != nil {
