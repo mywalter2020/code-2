@@ -14,6 +14,7 @@
 - 商品 / 发布 / 确认三类业务对象模型
 - 最小前端演示骨架（`/ui/`，含任务概览 / 预览卡片 / 确认操作 / 筛选）
 - 可选 API Key 写操作鉴权（`JUYU_API_KEY`）
+- `content_gen` 可选接入 NVIDIA Chat Completions（有配置时走真实 LLM）
 - 执行日志与失败状态
 - memory / sqlite / postgres 三种任务存储模式
 
@@ -139,6 +140,14 @@ export JUYU_TAOBAO_APP_KEY=xxx
 export JUYU_TAOBAO_SECRET=xxx
 export JUYU_DOUYIN_CLIENT_ID=xxx
 export JUYU_DOUYIN_CLIENT_SECRET=xxx
+```
+
+配置 NVIDIA LLM（可选，驱动 `content_gen`）：
+
+```bash
+export NVIDIA_URL=https://integrate.api.nvidia.com/v1/chat/completions
+export NVIDIA_KEY=your-key
+export NVIDIA_MODEL=meta/llama-3.1-405b-instruct
 ```
 
 未配置完整凭据时：

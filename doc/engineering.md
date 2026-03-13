@@ -21,6 +21,7 @@ The repository now includes:
 - 任务列表新增 status / scene / operator / platform / q 多条件筛选
 - adapter 层升级为统一基类，支持 descriptor / configured / dry_run / missing_fields
 - adapter 凭据改为从环境变量加载，便于后续替换成密钥中心
+- content_gen 新增可选 NVIDIA Chat Completions 集成，未配置时自动回退 stub
 
 ## Suggested next steps
 
