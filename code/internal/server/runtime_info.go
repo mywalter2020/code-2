@@ -12,5 +12,6 @@ func runtimeInfo() map[string]any {
 			"temperature": cfg.Temperature,
 			"max_tokens":  cfg.MaxTokens,
 		},
+		"providers": []string{"stub", "nvidia"},
 	}
 }

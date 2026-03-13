@@ -61,6 +61,8 @@ func NewNVIDIAClientFromEnv() *NVIDIAClient {
 	}
 }
 
+func (c *NVIDIAClient) ProviderName() string { return "nvidia" }
+
 func (c *NVIDIAClient) Enabled() bool {
 	return c != nil && c.url != "" && c.key != "" && c.model != ""
 }

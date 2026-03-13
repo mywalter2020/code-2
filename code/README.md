@@ -14,7 +14,7 @@
 - 商品 / 发布 / 确认三类业务对象模型
 - 最小前端演示骨架（`/ui/`，含任务概览 / 预览卡片 / 确认操作 / 筛选）
 - 可选 API Key 写操作鉴权（`JUYU_API_KEY`）
-- `content_gen` 可选接入 NVIDIA Chat Completions（有配置时走真实 LLM）
+- `content_gen` 已抽象为通用 provider 接口（当前支持 `stub` / `nvidia`）
 - 执行日志与失败状态
 - memory / sqlite / postgres 三种任务存储模式
 
@@ -142,14 +142,21 @@ export JUYU_DOUYIN_CLIENT_ID=xxx
 export JUYU_DOUYIN_CLIENT_SECRET=xxx
 ```
 
-配置 NVIDIA LLM（可选，驱动 `content_gen`）：
+配置 `content_gen` provider：
+
+```bash
+# 可选：stub | nvidia
+export CONTENT_GEN_PROVIDER=nvidia
+export CONTENT_GEN_MODEL=meta/llama-3.1-405b-instruct
+export CONTENT_GEN_TEMPERATURE=0.4
+export CONTENT_GEN_MAX_TOKENS=220
+```
+
+如果使用 NVIDIA：
 
 ```bash
 export NVIDIA_URL=https://integrate.api.nvidia.com/v1/chat/completions
 export NVIDIA_KEY=your-key
-export NVIDIA_MODEL=meta/llama-3.1-405b-instruct
-export CONTENT_GEN_TEMPERATURE=0.4
-export CONTENT_GEN_MAX_TOKENS=220
 ```
 
 如果要调 prompt，也可以直接改环境变量：

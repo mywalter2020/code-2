@@ -9,10 +9,10 @@ import (
 )
 
 type ContentAgent struct {
-	llm *llm.NVIDIAClient
+	llm llm.ContentGenerator
 }
 
-func NewContentAgent() *ContentAgent { return &ContentAgent{llm: llm.NewNVIDIAClientFromEnv()} }
+func NewContentAgent() *ContentAgent { return &ContentAgent{llm: llm.NewContentGeneratorFromEnv()} }
 func (a *ContentAgent) Code() string { return "content_gen" }
 func (a *ContentAgent) Run(ctx context.Context, req types.Request) (types.Response, error) {
 	biz := types.BuildBusinessContext(req, nil)
@@ -24,16 +24,14 @@ func (a *ContentAgent) Run(ctx context.Context, req types.Request) (types.Respon
 	}
 	content := fmt.Sprintf("基于输入生成内容：%s", biz.Product.Title)
 	mode := "stub"
-	if a.llm != nil && a.llm.Enabled() {
+	configView := map[string]any{"provider": "stub", "enabled": false}
+	if a.llm != nil {
 		generated, err := a.llm.GenerateProductContent(ctx, biz.Product.Title, biz.Product.Description, platform)
 		if err != nil {
 			return types.Response{}, err
 		}
 		content = generated
-		mode = "nvidia"
-	}
-	configView := map[string]any{"provider": "stub", "enabled": false}
-	if a.llm != nil {
+		mode = a.llm.ProviderName()
 		cfg := a.llm.Config()
 		configView = map[string]any{
 			"provider":    cfg.Provider,

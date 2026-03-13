@@ -31,9 +31,16 @@ func LoadContentGenConfig() ContentGenConfig {
 		}
 	}
 	provider := strings.TrimSpace(config.GetEnv("CONTENT_GEN_PROVIDER", "nvidia"))
-	model := strings.TrimSpace(config.GetEnv("NVIDIA_MODEL", config.GetEnv("NVIDIA_DEFAULT_MODEL", "meta/llama-3.1-405b-instruct")))
+	model := strings.TrimSpace(config.GetEnv("CONTENT_GEN_MODEL", config.GetEnv("NVIDIA_MODEL", config.GetEnv("NVIDIA_DEFAULT_MODEL", "meta/llama-3.1-405b-instruct"))))
 	systemPrompt := config.GetEnv("CONTENT_GEN_SYSTEM_PROMPT", "你擅长生成电商商品发布文案，输出准确、简洁、可直接使用。")
 	promptTemplate := config.GetEnv("CONTENT_GEN_PROMPT_TEMPLATE", "你是电商运营文案助手。请为以下商品生成一段简洁但可直接用于发布页的中文商品文案，控制在120字内。输出纯文本，不要加标题。商品标题：{{title}}。商品描述：{{description}}。目标平台：{{platform}}。")
+	enabled := false
+	switch provider {
+	case "nvidia", "":
+		enabled = strings.TrimSpace(config.GetEnv("NVIDIA_URL", "")) != "" && strings.TrimSpace(config.GetEnv("NVIDIA_KEY", "")) != ""
+	case "stub", "mock":
+		enabled = false
+	}
 	return ContentGenConfig{
 		Provider:       provider,
 		Model:          model,
@@ -41,6 +48,6 @@ func LoadContentGenConfig() ContentGenConfig {
 		MaxTokens:      maxTokens,
 		SystemPrompt:   systemPrompt,
 		PromptTemplate: promptTemplate,
-		Enabled:        strings.TrimSpace(config.GetEnv("NVIDIA_URL", "")) != "" && strings.TrimSpace(config.GetEnv("NVIDIA_KEY", "")) != "",
+		Enabled:        enabled,
 	}
 }
