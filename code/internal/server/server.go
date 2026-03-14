@@ -39,6 +39,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/adapters/health", s.handleAdapterHealth)
 	mux.HandleFunc("/adapters/descriptors", s.handleAdapterDescriptors)
 	mux.HandleFunc("/adapters/credentials", s.handleAdapterCredentials)
+	mux.HandleFunc("/admin/providers", s.handleProviderAdmin)
 	mux.HandleFunc("/execute", s.handleExecute)
 	mux.HandleFunc("/tasks/summary", s.handleTaskSummary)
 	mux.HandleFunc("/tasks", s.handleTaskList)

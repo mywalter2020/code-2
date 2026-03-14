@@ -30,7 +30,9 @@
     .preview-box { background: #0a0f23; border-radius: 12px; padding: 12px; margin-top: 10px; }
     .checklist li { margin: 6px 0; }
     .mini-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-    @media (max-width: 900px) { .grid, .mini-grid { grid-template-columns: 1fr; } .row { grid-template-columns: 1fr; } }
+    .triple-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .stack { display: grid; gap: 10px; }
+    @media (max-width: 900px) { .grid, .mini-grid, .triple-grid { grid-template-columns: 1fr; } .row { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -82,6 +84,45 @@
     </div>
 
     <div class="grid" style="margin-top:20px;">
+      <div class="card">
+        <h2>Provider 配置面板</h2>
+        <p class="muted">用于切换 content_gen / page_gen 的 provider 及核心参数。凭据仍通过环境变量注入。</p>
+        <div class="stack">
+          <div>
+            <h3>Content Gen</h3>
+            <div class="triple-grid">
+              <label>Provider<select id="cgProvider"><option value="stub">stub</option><option value="nvidia">nvidia</option><option value="openai_compat">openai_compat</option></select></label>
+              <label>Model<input id="cgModel" placeholder="模型名" /></label>
+              <label>Temperature<input id="cgTemperature" type="number" step="0.1" /></label>
+            </div>
+            <div class="row">
+              <label>Max Tokens<input id="cgMaxTokens" type="number" step="1" /></label>
+              <div></div>
+            </div>
+            <label>System Prompt<textarea id="cgSystemPrompt" rows="3"></textarea></label>
+            <label>Prompt Template<textarea id="cgPromptTemplate" rows="4"></textarea></label>
+          </div>
+          <div>
+            <h3>Page Gen</h3>
+            <div class="triple-grid">
+              <label>Provider<select id="pgProvider"><option value="stub">stub</option><option value="nvidia">nvidia</option><option value="openai_compat">openai_compat</option></select></label>
+              <label>Model<input id="pgModel" placeholder="模型名" /></label>
+              <label>Temperature<input id="pgTemperature" type="number" step="0.1" /></label>
+            </div>
+            <div class="row">
+              <label>Max Tokens<input id="pgMaxTokens" type="number" step="1" /></label>
+              <div></div>
+            </div>
+            <label>System Prompt<textarea id="pgSystemPrompt" rows="3"></textarea></label>
+            <label>Prompt Template<textarea id="pgPromptTemplate" rows="4"></textarea></label>
+          </div>
+          <div class="row">
+            <button class="secondary" id="loadProvidersBtn">读取当前配置</button>
+            <button id="saveProvidersBtn">保存 provider 配置</button>
+          </div>
+          <div id="providerInfo" class="muted">尚未加载 provider 配置</div>
+        </div>
+      </div>
       <div class="card">
         <h2>任务详情</h2>
         <div id="detail" class="muted">点击右侧任务查看。</div>
@@ -266,14 +307,74 @@ async function checkHealth() {
   document.getElementById('healthInfo').textContent = `status=${data.data?.status || '-'} · api_key_enabled=${auth.api_key_enabled ? 'yes' : 'no'} · write_header=${auth.write_header || '-'}`;
 }
 
+function setField(id, value) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.value = value ?? '';
+}
+
+function fillProviderForm(data) {
+  const cg = data?.content_gen || {};
+  const pg = data?.page_gen || {};
+  setField('cgProvider', cg.provider);
+  setField('cgModel', cg.model);
+  setField('cgTemperature', cg.temperature);
+  setField('cgMaxTokens', cg.max_tokens);
+  setField('cgSystemPrompt', cg.system_prompt);
+  setField('cgPromptTemplate', cg.prompt_template);
+  setField('pgProvider', pg.provider);
+  setField('pgModel', pg.model);
+  setField('pgTemperature', pg.temperature);
+  setField('pgMaxTokens', pg.max_tokens);
+  setField('pgSystemPrompt', pg.system_prompt);
+  setField('pgPromptTemplate', pg.prompt_template);
+  document.getElementById('providerInfo').textContent = `content_gen=${cg.provider || '-'} (${cg.enabled ? 'enabled' : 'disabled'}) · page_gen=${pg.provider || '-'} (${pg.enabled ? 'enabled' : 'disabled'})`;
+}
+
+function numberOrNull(value, isFloat) {
+  if (value === '' || value == null) return null;
+  return isFloat ? Number(value) : parseInt(value, 10);
+}
+
+async function loadProviders() {
+  const data = await api('/admin/providers');
+  fillProviderForm(data.data || {});
+}
+
+async function saveProviders() {
+  const body = {
+    content_gen: {
+      provider: document.getElementById('cgProvider').value,
+      model: document.getElementById('cgModel').value,
+      temperature: numberOrNull(document.getElementById('cgTemperature').value, true),
+      max_tokens: numberOrNull(document.getElementById('cgMaxTokens').value, false),
+      system_prompt: document.getElementById('cgSystemPrompt').value,
+      prompt_template: document.getElementById('cgPromptTemplate').value,
+    },
+    page_gen: {
+      provider: document.getElementById('pgProvider').value,
+      model: document.getElementById('pgModel').value,
+      temperature: numberOrNull(document.getElementById('pgTemperature').value, true),
+      max_tokens: numberOrNull(document.getElementById('pgMaxTokens').value, false),
+      system_prompt: document.getElementById('pgSystemPrompt').value,
+      prompt_template: document.getElementById('pgPromptTemplate').value,
+    }
+  };
+  const data = await api('/admin/providers', { method: 'PUT', body: JSON.stringify(body) });
+  fillProviderForm(data.data || {});
+  await checkHealth();
+}
+
 document.getElementById('createBtn').onclick = createTask;
 document.getElementById('refreshBtn').onclick = async () => { await loadSummary(); await loadTasks(); };
 document.getElementById('healthBtn').onclick = checkHealth;
 document.getElementById('applyFilterBtn').onclick = loadTasks;
 document.getElementById('confirmBtn').onclick = () => confirmTask(true);
 document.getElementById('rejectBtn').onclick = () => confirmTask(false);
+document.getElementById('loadProvidersBtn').onclick = loadProviders;
+document.getElementById('saveProvidersBtn').onclick = saveProviders;
 
-loadSummary().then(async () => { await loadTasks(); await checkHealth(); });
+loadSummary().then(async () => { await loadTasks(); await checkHealth(); await loadProviders(); });
 </script>
 </body>
 </html>

@@ -63,6 +63,12 @@
 ### `GET /ui/`
 最小前端演示骨架，可直接创建任务、查看预览、确认继续
 
+### `GET /admin/providers`
+查看当前 content/page provider 运行时配置
+
+### `PUT /admin/providers`
+更新当前进程内的 content/page provider 配置（需写权限；凭据仍从环境变量读取）
+
 ### `POST /execute`
 按场景触发大 Agent 编排执行
 

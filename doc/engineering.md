@@ -26,6 +26,7 @@ The repository now includes:
 - content_gen 已抽象为通用 provider 接口，当前支持 stub / nvidia，后续可继续接 OpenAI / 百炼 / 自建模型
 - page_gen 也已迁到同一套 provider 架构，支持 stub / nvidia，并支持 JSON 页面草图生成
 - 新增第二个真实 provider 骨架 `openai_compat`，可接 OpenAI / 硅基流动 / 本地兼容网关
+- 新增 provider 管理接口 `GET/PUT /admin/providers` 与前端配置面板，可在运行时切换 content_gen / page_gen 的 provider 与核心参数
 
 ## Suggested next steps
 
