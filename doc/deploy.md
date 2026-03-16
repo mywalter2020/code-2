@@ -13,7 +13,8 @@
 当前版本仍需注意：
 
 - 平台 adapter 已具备 live HTTP 调用骨架，但默认仍建议先以 dry-run 验证
-- Alibaba 已加入签名 envelope、字段映射、嵌套响应解析、鉴权放置切换，以及超时/重试/脱敏调试骨架
+- Alibaba 已加入 trace 级联调观测、签名 envelope、字段映射、嵌套响应解析、鉴权放置切换，以及超时/重试/脱敏调试骨架
+- Taobao 已补齐 live 协议骨架、签名 envelope、请求格式切换与可配置 method/path
 - 若要真实执行发布，必须补齐平台 API 协议、鉴权签名与正式凭据
 
 ## Recommended production baseline
@@ -70,6 +71,18 @@
 - `JUYU_TAOBAO_APP_KEY`
 - `JUYU_TAOBAO_SECRET`
 - `JUYU_TAOBAO_BASE_URL`
+- `JUYU_TAOBAO_SIGN_METHOD`
+- `JUYU_TAOBAO_VERSION`
+- `JUYU_TAOBAO_REQUEST_FORMAT`
+- `JUYU_TAOBAO_AUTH_PLACEMENT`
+- `JUYU_TAOBAO_PUBLISH_METHOD`
+- `JUYU_TAOBAO_UPDATE_METHOD`
+- `JUYU_TAOBAO_ON_SHELF_METHOD`
+- `JUYU_TAOBAO_OFF_SHELF_METHOD`
+- `JUYU_TAOBAO_PUBLISH_PATH`
+- `JUYU_TAOBAO_UPDATE_PATH`
+- `JUYU_TAOBAO_ON_SHELF_PATH`
+- `JUYU_TAOBAO_OFF_SHELF_PATH`
 - `JUYU_DOUYIN_CLIENT_ID`
 - `JUYU_DOUYIN_CLIENT_SECRET`
 - `JUYU_DOUYIN_BASE_URL`

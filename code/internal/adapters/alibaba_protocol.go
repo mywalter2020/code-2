@@ -126,6 +126,11 @@ func (a *AlibabaAdapter) liveInvoke(ctx context.Context, action string, req type
 		return types.AdapterResponse{}, err
 	}
 	parts := a.buildRequestParts(action, req, body)
+	trace := newTrace(a.name, action, "live", req.RequestID)
+	trace.URL = parts.URL
+	trace.ContentType = parts.ContentType
+	trace.Headers = redactMap(mapStringAny(parts.Headers), "X-Alibaba-Sign", "X-Alibaba-App-Key")
+	trace.Body = redactMap(anyMap(parts.Body), "sign", "app_key")
 	attempts := 1
 	if v := config.GetEnv("JUYU_ALIBABA_RETRY_ATTEMPTS", "1"); v != "" {
 		if n, parseErr := parsePositiveInt(v); parseErr == nil {
@@ -144,6 +149,7 @@ func (a *AlibabaAdapter) liveInvoke(ctx context.Context, action string, req type
 			retryDelay = time.Duration(ms) * time.Millisecond
 		}
 	}
+	trace.Attempts = attempts
 	resp, err := retryDo(ctx, attempts, retryDelay, func() (AdapterHTTPResponse, error) {
 		return a.httpClient.DoJSON(ctx, AdapterHTTPRequest{
 			Method:      httpMethodForAction(action),
@@ -155,7 +161,8 @@ func (a *AlibabaAdapter) liveInvoke(ctx context.Context, action string, req type
 		})
 	})
 	if err != nil {
-		return types.AdapterResponse{}, err
+		trace = finishTrace(trace, 0, nil, err.Error(), "transport")
+		return types.AdapterResponse{Platform: a.name, Action: action, Status: "failed", Mode: "live", RequestID: req.RequestID, Configured: a.isConfigured(), Data: map[string]any{"trace": trace}}, err
 	}
 	parsed := parseAlibabaResponse(resp, action, req.RequestID)
 	parsed.Configured = a.isConfigured()
@@ -169,6 +176,8 @@ func (a *AlibabaAdapter) liveInvoke(ctx context.Context, action string, req type
 		"attempts":     attempts,
 		"timeout_ms":   timeout.Milliseconds(),
 	}
+	trace = finishTrace(trace, resp.StatusCode, redactMap(resp.JSON, "sign", "app_key"), anyString(parsed.Data["error_message"]), anyString(parsed.Data["error_class"]))
+	parsed.Data["trace"] = trace
 	return parsed, nil
 }
 
