@@ -50,7 +50,7 @@ func providerRuntimeInfo() map[string]any {
 		"providers": providers,
 		"notes": map[string]any{
 			"nvidia_requires":        []string{"NVIDIA_URL", "NVIDIA_KEY"},
-			"openai_compat_requires": []string{"OPENAI_COMPAT_BASE_URL", "OPENAI_COMPAT_API_KEY"},
+			"openai_compat_requires": []string{"OPENAI_COMPAT_URL", "OPENAI_COMPAT_KEY", "OPENAI_COMPAT_MODEL or CONTENT_GEN_MODEL"},
 		},
 	}
 }
