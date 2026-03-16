@@ -32,4 +32,7 @@ func TestTaobaoLiveInvokeSendsSignedEnvelope(t *testing.T) {
 	if resp.Platform != "taobao" || resp.Status != "published" {
 		t.Fatalf("unexpected response: %+v", resp)
 	}
+	if _, ok := resp.Data["trace"]; !ok {
+		t.Fatalf("expected trace in response: %+v", resp.Data)
+	}
 }

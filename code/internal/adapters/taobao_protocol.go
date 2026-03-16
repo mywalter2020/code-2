@@ -133,14 +133,46 @@ func (a *TaobaoAdapter) liveInvoke(ctx context.Context, action string, req types
 		return types.AdapterResponse{}, err
 	}
 	parts := a.buildRequestParts(action, req, body)
-	resp, err := a.httpClient.DoJSON(ctx, AdapterHTTPRequest{Method: httpMethodForAction(action), URL: parts.URL, Headers: parts.Headers, Body: parts.Body, ContentType: parts.ContentType, Timeout: 30 * time.Second})
+	trace := newTrace(a.name, action, "live", req.RequestID)
+	trace.URL = parts.URL
+	trace.ContentType = parts.ContentType
+	trace.Headers = redactMap(mapStringAny(parts.Headers), "X-Taobao-Sign", "X-Taobao-App-Key")
+	trace.Body = redactMap(anyMap(parts.Body), "sign", "app_key")
+
+	attempts := 1
+	if v := config.GetEnv("JUYU_TAOBAO_RETRY_ATTEMPTS", "1"); v != "" {
+		if n, parseErr := parsePositiveInt(v); parseErr == nil {
+			attempts = n
+		}
+	}
+	timeout := 30 * time.Second
+	if v := config.GetEnv("JUYU_TAOBAO_TIMEOUT_MS", "30000"); v != "" {
+		if ms, parseErr := parsePositiveInt(v); parseErr == nil {
+			timeout = time.Duration(ms) * time.Millisecond
+		}
+	}
+	retryDelay := 500 * time.Millisecond
+	if v := config.GetEnv("JUYU_TAOBAO_RETRY_DELAY_MS", "500"); v != "" {
+		if ms, parseErr := parsePositiveInt(v); parseErr == nil {
+			retryDelay = time.Duration(ms) * time.Millisecond
+		}
+	}
+	trace.Attempts = attempts
+	resp, err := retryDo(ctx, attempts, retryDelay, func() (AdapterHTTPResponse, error) {
+		return a.httpClient.DoJSON(ctx, AdapterHTTPRequest{Method: httpMethodForAction(action), URL: parts.URL, Headers: parts.Headers, Body: parts.Body, ContentType: parts.ContentType, Timeout: timeout})
+	})
 	if err != nil {
-		return types.AdapterResponse{}, err
+		trace = finishTrace(trace, 0, nil, err.Error(), "transport")
+		return types.AdapterResponse{Platform: a.name, Action: action, Status: "failed", Mode: "live", RequestID: req.RequestID, Configured: a.isConfigured(), Data: map[string]any{"trace": trace}}, err
 	}
 	parsed := parseAlibabaResponse(resp, action, req.RequestID)
 	parsed.Platform = "taobao"
 	parsed.Configured = a.isConfigured()
-	parsed.Data["base_url"] = a.baseURL
+	trace = finishTrace(trace, resp.StatusCode, redactMap(resp.JSON, "sign", "app_key"), anyString(parsed.Data["error_message"]), anyString(parsed.Data["error_class"]))
+	attachTraceData(&parsed, trace, a.baseURL, req.ExternalRef)
+	if requestMap, ok := parsed.Data["request"].(map[string]any); ok {
+		requestMap["timeout_ms"] = timeout.Milliseconds()
+	}
 	return parsed, nil
 }
 
