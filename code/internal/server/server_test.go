@@ -119,8 +119,7 @@ func TestProviderAdminUpdatesRuntimeConfig(t *testing.T) {
 	mux := http.NewServeMux()
 	srv.Register(mux)
 
-	body := bytes.NewBufferString(`{"content_gen":{"provider":"openai_compat","model":"gpt-test"},"page_gen":{"provider":"stub"}}`)
-	req := httptest.NewRequest(http.MethodPut, "/admin/providers", body)
+	req := httptest.NewRequest(http.MethodPut, "/admin/providers", body(`{"content_gen":{"provider":"openai_compat","model":"gpt-test"},"page_gen":{"provider":"stub"}}`))
 	req.Header.Set("X-API-Key", "secret")
 	rec := httptest.NewRecorder()
 
@@ -132,4 +131,29 @@ func TestProviderAdminUpdatesRuntimeConfig(t *testing.T) {
 	if got := providerRuntimeInfo()["content_gen"].(map[string]any)["provider"]; got != "openai_compat" {
 		t.Fatalf("expected runtime provider update, got %v", got)
 	}
+}
+
+func body(s string) *bytes.Buffer { return bytes.NewBufferString(s) }
+
+func decodeAPIResponse(t *testing.T, rec *httptest.ResponseRecorder) types.APIResponse {
+	t.Helper()
+	var resp types.APIResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	return resp
+}
+
+func createTaskForTest(t *testing.T, mux *http.ServeMux) string {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/execute", body(`{"scene":"product","input":"demo","payload":{"platform":"alibaba"}}`))
+	req.Header.Set("X-API-Key", "secret")
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create task failed: %d %s", rec.Code, rec.Body.String())
+	}
+	resp := decodeAPIResponse(t, rec)
+	data := resp.Data.(map[string]any)
+	return data["task_id"].(string)
 }

@@ -16,13 +16,25 @@ import (
 )
 
 func main() {
-	cfg, err := config.Load(config.ResolveConfigPath())
+	cfgPath := config.ResolveConfigPath()
+	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		log.Fatalf("load config failed: %v", err)
+	}
+	if err := config.Validate(cfg); err != nil {
+		log.Fatalf("config validation failed (%s): %v", cfgPath, err)
 	}
 
 	credentialStore := adapters.LoadCredentialsFromEnv()
 	dryRun := adapters.DryRunFromEnv()
+	storeDriver := config.GetEnv("JUYU_STORE", "memory")
+	sqlitePath := config.GetEnv("JUYU_SQLITE_PATH", "juyu.db")
+	pgDSN := config.GetEnv("JUYU_PG_DSN", store.DefaultPostgresDSN())
+	apiKey := config.GetEnv("JUYU_API_KEY", "")
+	if err := config.ValidateRuntime(storeDriver, sqlitePath, pgDSN, apiKey, dryRun); err != nil {
+		log.Fatalf("runtime validation failed: %v", err)
+	}
+
 	adapterRegistry := adapters.NewDefaultRegistry(credentialStore, dryRun)
 
 	rg := registry.New()
@@ -49,16 +61,14 @@ func main() {
 	rt := router.New(cfg.MasterAgents)
 
 	var st store.TaskStore
-	driver := config.GetEnv("JUYU_STORE", "memory")
-	switch driver {
+	switch storeDriver {
 	case "sqlite":
-		sqliteStore, err := store.NewSQLiteStore(store.ParseDSN(config.GetEnv("JUYU_SQLITE_PATH", "juyu.db")))
+		sqliteStore, err := store.NewSQLiteStore(store.ParseDSN(sqlitePath))
 		if err != nil {
 			log.Fatalf("init sqlite store failed: %v", err)
 		}
 		st = sqliteStore
 	case "postgres", "pg":
-		pgDSN := config.GetEnv("JUYU_PG_DSN", store.DefaultPostgresDSN())
 		if err := config.WaitForPostgres(pgDSN, 20, 2*time.Second); err != nil {
 			log.Fatalf("postgres not ready: %v", err)
 		}
@@ -78,7 +88,7 @@ func main() {
 		server.BuildAbilityMetadata(cfg.AbilityAgents),
 		server.BuildMasterMetadata(cfg.MasterAgents),
 		server.BuildBindingViews(cfg.Bindings),
-		config.GetEnv("JUYU_API_KEY", ""),
+		apiKey,
 	)
 	server.AttachAdapterRuntime(api, adapterRegistry, credentialStore)
 

@@ -181,6 +181,19 @@ export PAGE_GEN_PROMPT_TEMPLATE='请基于以下商品信息生成一个 JSON �
 - dry-run=true 时仍可走通演示链路
 - dry-run=false 时写动作会因缺凭据而失败
 
+## 部署与上线准备
+
+部署说明见：`../doc/deploy.md`
+
+当前服务启动时会做配置与运行时校验，包括：
+
+- 配置文件结构合法性
+- workflow 引用完整性
+- store 参数完整性
+- live 模式下 API Key 要求
+
+这可以避免配置缺失时服务“看起来启动了，实际不可用”。
+
 ## 当前说明
 
 ## 业务对象模型
