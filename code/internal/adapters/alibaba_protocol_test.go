@@ -44,6 +44,10 @@ func TestAlibabaLiveInvokeSendsSignedEnvelope(t *testing.T) {
 		if body["sign"] == "" || body["method"] != "alibaba.item.publish" {
 			t.Fatalf("unexpected signed payload: %+v", body)
 		}
+		item, ok := body["item"].(map[string]any)
+		if !ok || item["title"] != "demo" {
+			t.Fatalf("expected mapped item payload, got %+v", body["item"])
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"status": "published", "remote_id": "ali-1"})
 	}))
 	defer ts.Close()

@@ -75,7 +75,11 @@ func (a *AlibabaAdapter) signedPayload(action string, req types.AdapterRequest) 
 	if appKey == "" || secret == "" {
 		return nil, fmt.Errorf("alibaba adapter missing app_key or secret")
 	}
-	payloadJSON, err := json.Marshal(requestPayload(req))
+	itemPayload, err := alibabaItemPayload(req)
+	if err != nil {
+		return nil, err
+	}
+	payloadJSON, err := json.Marshal(itemPayload)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +102,7 @@ func (a *AlibabaAdapter) signedPayload(action string, req types.AdapterRequest) 
 		"sign":         params["sign"],
 		"request_id":   req.RequestID,
 		"external_ref": req.ExternalRef,
-		"payload":      requestPayload(req),
+		"item":         itemPayload,
 	}, nil
 }
 
@@ -107,7 +111,24 @@ func (a *AlibabaAdapter) liveInvoke(ctx context.Context, action string, req type
 	if err != nil {
 		return types.AdapterResponse{}, err
 	}
-	return a.liveCall(ctx, action, req, a.livePath(action), body)
+	resp, err := a.httpClient.DoJSON(ctx, AdapterHTTPRequest{
+		Method: httpMethodForAction(action),
+		URL:    a.endpoint(a.livePath(action)),
+		Headers: map[string]string{
+			"X-Request-ID":   req.RequestID,
+			"X-External-Ref": req.ExternalRef,
+		},
+		Body:    body,
+		Timeout: 30 * time.Second,
+	})
+	if err != nil {
+		return types.AdapterResponse{}, err
+	}
+	parsed := parseAlibabaResponse(resp, action, req.RequestID)
+	parsed.Configured = a.isConfigured()
+	parsed.Data["base_url"] = a.baseURL
+	parsed.Data["external_ref"] = req.ExternalRef
+	return parsed, nil
 }
 
 func alibabaMD5Sign(secret string, params map[string]string) string {

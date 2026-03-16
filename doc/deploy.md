@@ -13,7 +13,7 @@
 当前版本仍需注意：
 
 - 平台 adapter 已具备 live HTTP 调用骨架，但默认仍建议先以 dry-run 验证
-- Alibaba 已加入签名 envelope 骨架（app_key / method / timestamp / v / sign / payload）
+- Alibaba 已加入签名 envelope 与字段映射骨架（app_key / method / timestamp / v / sign / item）
 - 若要真实执行发布，必须补齐平台 API 协议、鉴权签名与正式凭据
 
 ## Recommended production baseline
