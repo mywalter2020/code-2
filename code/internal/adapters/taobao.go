@@ -9,7 +9,8 @@ import (
 type TaobaoAdapter struct{ BaseAdapter }
 
 func NewTaobaoAdapter(store *CredentialStore, dryRun bool) *TaobaoAdapter {
-	return &TaobaoAdapter{BaseAdapter: NewBaseAdapter("taobao", "Taobao", []string{"app_key", "secret"}, store, dryRun)}
+	cfg := LoadPlatformConfigsFromEnv()["taobao"]
+	return &TaobaoAdapter{BaseAdapter: NewBaseAdapter("taobao", "Taobao", []string{"app_key", "secret"}, store, dryRun, cfg.BaseURL)}
 }
 
 func (a *TaobaoAdapter) Publish(ctx context.Context, req types.AdapterRequest) (types.AdapterResponse, error) {

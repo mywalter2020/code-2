@@ -49,7 +49,7 @@
 查看主控 Agent 与能力 / workflow 绑定关系
 
 ### `GET /adapters/health`
-查看平台 adapter 健康状态（含 configured / dry_run / missing_fields）
+查看平台 adapter 健康状态（含 configured / dry_run / missing_fields / base_url_configured / live_ready）
 
 ### `GET /adapters/descriptors`
 查看平台 adapter 描述信息（支持动作、必填凭据、当前模式）

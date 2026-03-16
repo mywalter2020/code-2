@@ -48,10 +48,13 @@
 - `JUYU_ADAPTER_DRY_RUN`
 - `JUYU_ALIBABA_APP_KEY`
 - `JUYU_ALIBABA_SECRET`
+- `JUYU_ALIBABA_BASE_URL`
 - `JUYU_TAOBAO_APP_KEY`
 - `JUYU_TAOBAO_SECRET`
+- `JUYU_TAOBAO_BASE_URL`
 - `JUYU_DOUYIN_CLIENT_ID`
 - `JUYU_DOUYIN_CLIENT_SECRET`
+- `JUYU_DOUYIN_BASE_URL`
 
 ### LLM Providers
 
@@ -77,6 +80,7 @@ OpenAI-compatible:
 - `JUYU_STORE` 是否合法
 - `sqlite / postgres` 所需参数是否齐全
 - 当 `JUYU_ADAPTER_DRY_RUN=false` 时，`JUYU_API_KEY` 是否已设置
+- adapter 在 live 模式下是否配置了平台 base URL
 
 校验失败时，服务会直接启动失败，而不是带病运行。
 

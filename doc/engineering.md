@@ -19,7 +19,7 @@ The repository now includes:
 - app healthcheck 已改为 curl 并在镜像内补齐依赖
 - 新增可选写操作 API Key 鉴权（JUYU_API_KEY）
 - 任务列表新增 status / scene / operator / platform / q 多条件筛选
-- adapter 层升级为统一基类，支持 descriptor / configured / dry_run / missing_fields
+- adapter 层升级为统一基类，支持 descriptor / configured / dry_run / missing_fields / base_url_configured / live_ready
 - adapter 凭据改为从环境变量加载，便于后续替换成密钥中心
 - content_gen 新增可选 NVIDIA Chat Completions 集成，未配置时自动回退 stub
 - content_gen 的 model / temperature / max_tokens / system_prompt / prompt_template 已参数化

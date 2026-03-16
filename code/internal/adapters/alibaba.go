@@ -9,7 +9,8 @@ import (
 type AlibabaAdapter struct{ BaseAdapter }
 
 func NewAlibabaAdapter(store *CredentialStore, dryRun bool) *AlibabaAdapter {
-	return &AlibabaAdapter{BaseAdapter: NewBaseAdapter("alibaba", "Alibaba", []string{"app_key", "secret"}, store, dryRun)}
+	cfg := LoadPlatformConfigsFromEnv()["alibaba"]
+	return &AlibabaAdapter{BaseAdapter: NewBaseAdapter("alibaba", "Alibaba", []string{"app_key", "secret"}, store, dryRun, cfg.BaseURL)}
 }
 
 func (a *AlibabaAdapter) Publish(ctx context.Context, req types.AdapterRequest) (types.AdapterResponse, error) {

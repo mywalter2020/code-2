@@ -33,7 +33,14 @@ func (a *OnShelfAgent) Run(ctx context.Context, req types.Request) (types.Respon
 	}
 	payload["product"] = biz.Product
 	payload["publish"] = biz.Publish
-	result, err := adapter.OnShelf(ctx, types.AdapterRequest{Platform: platform, Action: "on_shelf", Operator: req.Operator, Payload: payload})
+	result, err := adapter.OnShelf(ctx, types.AdapterRequest{
+		Platform:    platform,
+		Action:      "on_shelf",
+		Operator:    req.Operator,
+		RequestID:   stringFromPayload(req.Payload, "request_id", ""),
+		ExternalRef: stringFromPayload(req.Payload, "external_ref", biz.Product.SKU),
+		Payload:     payload,
+	})
 	if err != nil {
 		return types.Response{}, err
 	}

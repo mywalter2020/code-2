@@ -9,7 +9,8 @@ import (
 type DouyinAdapter struct{ BaseAdapter }
 
 func NewDouyinAdapter(store *CredentialStore, dryRun bool) *DouyinAdapter {
-	return &DouyinAdapter{BaseAdapter: NewBaseAdapter("douyin", "Douyin", []string{"client_id", "client_secret"}, store, dryRun)}
+	cfg := LoadPlatformConfigsFromEnv()["douyin"]
+	return &DouyinAdapter{BaseAdapter: NewBaseAdapter("douyin", "Douyin", []string{"client_id", "client_secret"}, store, dryRun, cfg.BaseURL)}
 }
 
 func (a *DouyinAdapter) Publish(ctx context.Context, req types.AdapterRequest) (types.AdapterResponse, error) {

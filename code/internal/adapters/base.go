@@ -14,55 +14,72 @@ type BaseAdapter struct {
 	requiredFields  []string
 	credentialStore *CredentialStore
 	dryRun          bool
+	baseURL         string
 }
 
-func NewBaseAdapter(name, displayName string, requiredFields []string, credentialStore *CredentialStore, dryRun bool) BaseAdapter {
+func NewBaseAdapter(name, displayName string, requiredFields []string, credentialStore *CredentialStore, dryRun bool, baseURL string) BaseAdapter {
 	return BaseAdapter{
 		name:            name,
 		displayName:     displayName,
 		requiredFields:  requiredFields,
 		credentialStore: credentialStore,
 		dryRun:          dryRun,
+		baseURL:         strings.TrimSpace(baseURL),
 	}
 }
 
 func (a BaseAdapter) Name() string { return a.name }
 
 func (a BaseAdapter) Descriptor() types.AdapterDescriptor {
+	configured, _ := a.checkCredentials()
+	baseURLConfigured := a.baseURL != ""
 	return types.AdapterDescriptor{
-		Platform:         a.name,
-		DisplayName:      a.displayName,
-		RequiredFields:   append([]string{}, a.requiredFields...),
-		DryRun:           a.dryRun,
-		Configured:       a.isConfigured(),
-		SupportedActions: []string{"publish", "update", "on_shelf", "off_shelf"},
+		Platform:          a.name,
+		DisplayName:       a.displayName,
+		RequiredFields:    append([]string{}, a.requiredFields...),
+		DryRun:            a.dryRun,
+		Configured:        configured,
+		BaseURLConfigured: baseURLConfigured,
+		LiveReady:         configured && baseURLConfigured,
+		SupportedActions:  []string{"publish", "update", "on_shelf", "off_shelf"},
 	}
 }
 
 func (a BaseAdapter) Health(ctx context.Context) (types.AdapterHealth, error) {
 	_ = ctx
 	configured, missing := a.checkCredentials()
+	baseURLConfigured := a.baseURL != ""
 	message := "adapter ready"
 	if a.dryRun {
 		message = "dry-run mode"
+	} else if !baseURLConfigured {
+		message = "live mode requires base_url"
 	}
 	if !configured {
 		message = fmt.Sprintf("missing credentials: %s", strings.Join(missing, ", "))
 	}
 	return types.AdapterHealth{
-		Platform:      a.name,
-		Healthy:       true,
-		Configured:    configured,
-		DryRun:        a.dryRun,
-		Message:       message,
-		MissingFields: missing,
+		Platform:          a.name,
+		Healthy:           a.dryRun || (configured && baseURLConfigured),
+		Configured:        configured,
+		DryRun:            a.dryRun,
+		BaseURLConfigured: baseURLConfigured,
+		LiveReady:         configured && baseURLConfigured,
+		Message:           message,
+		MissingFields:     missing,
 	}, nil
 }
 
 func (a BaseAdapter) Respond(action, status string, req types.AdapterRequest) (types.AdapterResponse, error) {
 	configured, missing := a.checkCredentials()
+	if err := a.validateRequest(req); err != nil {
+		return types.AdapterResponse{}, err
+	}
 	if !configured && !a.dryRun {
 		return types.AdapterResponse{}, fmt.Errorf("adapter %s missing credentials: %s", a.name, strings.Join(missing, ", "))
+	}
+	if !a.dryRun && a.baseURL == "" {
+		return types.AdapterResponse{}, fmt.Errorf("adapter %s missing base_url in live mode", a.name)
 	}
 	mode := "live"
 	if a.dryRun {
@@ -74,12 +91,15 @@ func (a BaseAdapter) Respond(action, status string, req types.AdapterRequest) (t
 		Status:     status,
 		Mode:       mode,
 		Configured: configured,
+		RequestID:  req.RequestID,
 		Data: map[string]any{
-			"payload":    req.Payload,
-			"operator":   req.Operator,
-			"configured": configured,
-			"dry_run":    a.dryRun,
-			"missing":    missing,
+			"payload":      req.Payload,
+			"operator":     req.Operator,
+			"configured":   configured,
+			"dry_run":      a.dryRun,
+			"missing":      missing,
+			"base_url":     a.baseURL,
+			"external_ref": req.ExternalRef,
 		},
 	}, nil
 }
@@ -87,6 +107,32 @@ func (a BaseAdapter) Respond(action, status string, req types.AdapterRequest) (t
 func (a BaseAdapter) isConfigured() bool {
 	ok, _ := a.checkCredentials()
 	return ok
+}
+
+func (a BaseAdapter) validateRequest(req types.AdapterRequest) error {
+	if strings.TrimSpace(req.Platform) == "" {
+		return fmt.Errorf("adapter %s request missing platform", a.name)
+	}
+	if strings.TrimSpace(req.Action) == "" {
+		return fmt.Errorf("adapter %s request missing action", a.name)
+	}
+	if req.Payload == nil {
+		return fmt.Errorf("adapter %s request missing payload", a.name)
+	}
+	product, ok := req.Payload["product"].(types.Product)
+	if !ok {
+		if productMap, mapOK := req.Payload["product"].(map[string]any); mapOK {
+			if title, ok := productMap["title"].(string); !ok || strings.TrimSpace(title) == "" {
+				return fmt.Errorf("adapter %s request missing product.title", a.name)
+			}
+			return nil
+		}
+		return fmt.Errorf("adapter %s request missing product", a.name)
+	}
+	if strings.TrimSpace(product.Title) == "" {
+		return fmt.Errorf("adapter %s request missing product.title", a.name)
+	}
+	return nil
 }
 
 func (a BaseAdapter) checkCredentials() (bool, []string) {
