@@ -15,25 +15,31 @@ import (
 )
 
 type AlibabaLiveOptions struct {
-	PublishPath   string
-	UpdatePath    string
-	OnShelfPath   string
-	OffShelfPath  string
-	SignMethod    string
-	Version       string
-	RequestFormat string
-	MethodMap     map[string]string
+	PublishPath    string
+	UpdatePath     string
+	OnShelfPath    string
+	OffShelfPath   string
+	SignMethod     string
+	Version        string
+	RequestFormat  string
+	AuthPlacement  string
+	IncludeAppKey  bool
+	IncludeVersion bool
+	MethodMap      map[string]string
 }
 
 func defaultAlibabaLiveOptions() AlibabaLiveOptions {
 	return AlibabaLiveOptions{
-		PublishPath:   "/publish",
-		UpdatePath:    "/update",
-		OnShelfPath:   "/on_shelf",
-		OffShelfPath:  "/off_shelf",
-		SignMethod:    config.GetEnv("JUYU_ALIBABA_SIGN_METHOD", "md5"),
-		Version:       config.GetEnv("JUYU_ALIBABA_VERSION", "2.0"),
-		RequestFormat: config.GetEnv("JUYU_ALIBABA_REQUEST_FORMAT", "json"),
+		PublishPath:    "/publish",
+		UpdatePath:     "/update",
+		OnShelfPath:    "/on_shelf",
+		OffShelfPath:   "/off_shelf",
+		SignMethod:     config.GetEnv("JUYU_ALIBABA_SIGN_METHOD", "md5"),
+		Version:        config.GetEnv("JUYU_ALIBABA_VERSION", "2.0"),
+		RequestFormat:  config.GetEnv("JUYU_ALIBABA_REQUEST_FORMAT", "json"),
+		AuthPlacement:  config.GetEnv("JUYU_ALIBABA_AUTH_PLACEMENT", "body"),
+		IncludeAppKey:  !strings.EqualFold(config.GetEnv("JUYU_ALIBABA_INCLUDE_APP_KEY", "true"), "false"),
+		IncludeVersion: !strings.EqualFold(config.GetEnv("JUYU_ALIBABA_INCLUDE_VERSION", "true"), "false"),
 		MethodMap: map[string]string{
 			"publish":   "alibaba.item.publish",
 			"update":    "alibaba.item.update",
@@ -96,27 +102,22 @@ func (a *AlibabaAdapter) signedPayload(action string, req types.AdapterRequest) 
 	if err != nil {
 		return nil, err
 	}
+	opts := a.liveOptions()
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	params := map[string]string{
-		"app_key":     appKey,
 		"method":      a.liveMethod(action),
-		"sign_method": a.liveOptions().SignMethod,
+		"sign_method": opts.SignMethod,
 		"timestamp":   timestamp,
-		"v":           a.liveOptions().Version,
 		"payload":     string(payloadJSON),
 	}
+	if opts.IncludeAppKey {
+		params["app_key"] = appKey
+	}
+	if opts.IncludeVersion {
+		params["v"] = opts.Version
+	}
 	params["sign"] = alibabaMD5Sign(secret, params)
-	return map[string]any{
-		"app_key":      params["app_key"],
-		"method":       params["method"],
-		"sign_method":  params["sign_method"],
-		"timestamp":    params["timestamp"],
-		"v":            params["v"],
-		"sign":         params["sign"],
-		"request_id":   req.RequestID,
-		"external_ref": req.ExternalRef,
-		"item":         itemPayload,
-	}, nil
+	return paramsWithItem(params, req, itemPayload), nil
 }
 
 func (a *AlibabaAdapter) liveInvoke(ctx context.Context, action string, req types.AdapterRequest) (types.AdapterResponse, error) {
@@ -124,19 +125,13 @@ func (a *AlibabaAdapter) liveInvoke(ctx context.Context, action string, req type
 	if err != nil {
 		return types.AdapterResponse{}, err
 	}
-	contentType := "application/json"
-	if strings.EqualFold(a.liveOptions().RequestFormat, "form") || strings.EqualFold(a.liveOptions().RequestFormat, "x-www-form-urlencoded") {
-		contentType = "application/x-www-form-urlencoded"
-	}
+	parts := a.buildRequestParts(action, req, body)
 	resp, err := a.httpClient.DoJSON(ctx, AdapterHTTPRequest{
-		Method: httpMethodForAction(action),
-		URL:    a.endpoint(a.livePath(action)),
-		Headers: map[string]string{
-			"X-Request-ID":   req.RequestID,
-			"X-External-Ref": req.ExternalRef,
-		},
-		Body:        body,
-		ContentType: contentType,
+		Method:      httpMethodForAction(action),
+		URL:         parts.URL,
+		Headers:     parts.Headers,
+		Body:        parts.Body,
+		ContentType: parts.ContentType,
 		Timeout:     30 * time.Second,
 	})
 	if err != nil {

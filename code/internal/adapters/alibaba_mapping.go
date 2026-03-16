@@ -119,7 +119,7 @@ func extractPublish(payload map[string]any) types.PublishRequest {
 
 func parseAlibabaResponse(resp AdapterHTTPResponse, action, requestID string) types.AdapterResponse {
 	body := normalizeAlibabaResponse(resp.JSON)
-	status := firstNonEmpty(anyString(body["status"]), anyString(body["result"]), defaultStatusForAction(action))
+	status := interpretAlibabaStatus(body, action)
 	remoteID := firstNonEmpty(
 		anyString(body["remote_id"]),
 		anyString(body["item_id"]),
@@ -152,6 +152,19 @@ func parseAlibabaResponse(resp AdapterHTTPResponse, action, requestID string) ty
 		Configured: true,
 		Data:       data,
 	}
+}
+
+func interpretAlibabaStatus(body map[string]any, action string) string {
+	if success, ok := body["success"].(bool); ok {
+		if success {
+			return defaultStatusForAction(action)
+		}
+		return "failed"
+	}
+	if code := firstNonEmpty(anyString(body["error_code"]), anyString(body["sub_code"]), anyString(body["code"])); code != "" {
+		return "failed"
+	}
+	return firstNonEmpty(anyString(body["status"]), anyString(body["result"]), defaultStatusForAction(action))
 }
 
 func normalizeAlibabaResponse(m map[string]any) map[string]any {
