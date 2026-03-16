@@ -126,13 +126,33 @@ func (a *AlibabaAdapter) liveInvoke(ctx context.Context, action string, req type
 		return types.AdapterResponse{}, err
 	}
 	parts := a.buildRequestParts(action, req, body)
-	resp, err := a.httpClient.DoJSON(ctx, AdapterHTTPRequest{
-		Method:      httpMethodForAction(action),
-		URL:         parts.URL,
-		Headers:     parts.Headers,
-		Body:        parts.Body,
-		ContentType: parts.ContentType,
-		Timeout:     30 * time.Second,
+	attempts := 1
+	if v := config.GetEnv("JUYU_ALIBABA_RETRY_ATTEMPTS", "1"); v != "" {
+		if n, parseErr := parsePositiveInt(v); parseErr == nil {
+			attempts = n
+		}
+	}
+	timeout := 30 * time.Second
+	if v := config.GetEnv("JUYU_ALIBABA_TIMEOUT_MS", "30000"); v != "" {
+		if ms, parseErr := parsePositiveInt(v); parseErr == nil {
+			timeout = time.Duration(ms) * time.Millisecond
+		}
+	}
+	retryDelay := 500 * time.Millisecond
+	if v := config.GetEnv("JUYU_ALIBABA_RETRY_DELAY_MS", "500"); v != "" {
+		if ms, parseErr := parsePositiveInt(v); parseErr == nil {
+			retryDelay = time.Duration(ms) * time.Millisecond
+		}
+	}
+	resp, err := retryDo(ctx, attempts, retryDelay, func() (AdapterHTTPResponse, error) {
+		return a.httpClient.DoJSON(ctx, AdapterHTTPRequest{
+			Method:      httpMethodForAction(action),
+			URL:         parts.URL,
+			Headers:     parts.Headers,
+			Body:        parts.Body,
+			ContentType: parts.ContentType,
+			Timeout:     timeout,
+		})
 	})
 	if err != nil {
 		return types.AdapterResponse{}, err
@@ -141,6 +161,14 @@ func (a *AlibabaAdapter) liveInvoke(ctx context.Context, action string, req type
 	parsed.Configured = a.isConfigured()
 	parsed.Data["base_url"] = a.baseURL
 	parsed.Data["external_ref"] = req.ExternalRef
+	parsed.Data["request"] = map[string]any{
+		"url":          parts.URL,
+		"content_type": parts.ContentType,
+		"headers":      redactMap(mapStringAny(parts.Headers), "X-Alibaba-Sign", "X-Alibaba-App-Key"),
+		"body":         redactMap(anyMap(parts.Body), "sign", "app_key"),
+		"attempts":     attempts,
+		"timeout_ms":   timeout.Milliseconds(),
+	}
 	return parsed, nil
 }
 

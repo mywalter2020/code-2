@@ -127,6 +127,7 @@ func parseAlibabaResponse(resp AdapterHTTPResponse, action, requestID string) ty
 	)
 	errCode := firstNonEmpty(anyString(body["error_code"]), anyString(body["sub_code"]), anyString(body["code"]))
 	errMsg := firstNonEmpty(anyString(body["error_message"]), anyString(body["sub_msg"]), anyString(body["message"]))
+	errClass := classifyAlibabaError(errCode, resp.StatusCode)
 	if errCode != "" && errMsg == "" {
 		errMsg = errCode
 	}
@@ -139,6 +140,9 @@ func parseAlibabaResponse(resp AdapterHTTPResponse, action, requestID string) ty
 	}
 	if errCode != "" {
 		data["error_code"] = errCode
+	}
+	if errClass != "" {
+		data["error_class"] = errClass
 	}
 	if errMsg != "" {
 		data["error_message"] = errMsg
@@ -165,6 +169,22 @@ func interpretAlibabaStatus(body map[string]any, action string) string {
 		return "failed"
 	}
 	return firstNonEmpty(anyString(body["status"]), anyString(body["result"]), defaultStatusForAction(action))
+}
+
+func classifyAlibabaError(code string, httpStatus int) string {
+	code = strings.ToUpper(strings.TrimSpace(code))
+	switch {
+	case httpStatus == 401 || strings.Contains(code, "AUTH") || strings.Contains(code, "SIGN"):
+		return "auth"
+	case httpStatus == 429 || strings.Contains(code, "LIMIT") || strings.Contains(code, "THROTTLE"):
+		return "rate_limit"
+	case httpStatus >= 500 || strings.Contains(code, "SYSTEM") || strings.Contains(code, "INTERNAL"):
+		return "server"
+	case code != "":
+		return "business"
+	default:
+		return ""
+	}
 }
 
 func normalizeAlibabaResponse(m map[string]any) map[string]any {

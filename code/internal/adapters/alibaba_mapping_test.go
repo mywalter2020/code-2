@@ -69,6 +69,9 @@ func TestParseAlibabaResponseWithErrorCode(t *testing.T) {
 	if resp.Data["error_code"] != "INVALID_PARAM" {
 		t.Fatalf("expected error code, got %+v", resp.Data)
 	}
+	if resp.Data["error_class"] != "business" {
+		t.Fatalf("expected business class, got %+v", resp.Data)
+	}
 	if resp.Status != "failed" {
 		t.Fatalf("expected failed status, got %+v", resp)
 	}
