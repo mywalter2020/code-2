@@ -12,8 +12,8 @@
 
 当前版本仍需注意：
 
-- 平台 adapter 仍以 stub / dry-run 为主
-- 若要真实执行发布，必须补齐平台 API 接入与凭据
+- 平台 adapter 已具备 live HTTP 调用骨架，但默认仍建议先以 dry-run 验证
+- 若要真实执行发布，必须补齐平台 API 协议、鉴权签名与正式凭据
 
 ## Recommended production baseline
 
@@ -104,5 +104,5 @@ curl http://127.0.0.1:8080/healthz
 - [ ] `healthz` 正常
 - [ ] `JUYU_API_KEY` 已配置
 - [ ] 存储不是 memory（正式环境）
-- [ ] 若需要真实发布：平台凭据与真实 adapter 已完成联调
+- [ ] 若需要真实发布：平台凭据、base URL、鉴权签名与真实 adapter 已完成联调
 - [ ] 若需要真实 LLM：provider 凭据已配置并验证

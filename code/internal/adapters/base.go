@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"juyu-ai-platform/internal/types"
 )
@@ -15,6 +16,7 @@ type BaseAdapter struct {
 	credentialStore *CredentialStore
 	dryRun          bool
 	baseURL         string
+	httpClient      *AdapterHTTPClient
 }
 
 func NewBaseAdapter(name, displayName string, requiredFields []string, credentialStore *CredentialStore, dryRun bool, baseURL string) BaseAdapter {
@@ -25,6 +27,7 @@ func NewBaseAdapter(name, displayName string, requiredFields []string, credentia
 		credentialStore: credentialStore,
 		dryRun:          dryRun,
 		baseURL:         strings.TrimSpace(baseURL),
+		httpClient:      NewAdapterHTTPClient(nil),
 	}
 }
 
@@ -107,6 +110,70 @@ func (a BaseAdapter) Respond(action, status string, req types.AdapterRequest) (t
 func (a BaseAdapter) isConfigured() bool {
 	ok, _ := a.checkCredentials()
 	return ok
+}
+
+func (a BaseAdapter) withHTTPClient(client HTTPClient) BaseAdapter {
+	a.httpClient = NewAdapterHTTPClient(client)
+	return a
+}
+
+func (a BaseAdapter) endpoint(path string) string {
+	base := strings.TrimRight(a.baseURL, "/")
+	if base == "" {
+		return path
+	}
+	if strings.HasPrefix(path, "/") {
+		return base + path
+	}
+	return base + "/" + path
+}
+
+func (a BaseAdapter) liveCall(ctx context.Context, action string, req types.AdapterRequest, path string, body any) (types.AdapterResponse, error) {
+	if a.httpClient == nil {
+		a.httpClient = NewAdapterHTTPClient(nil)
+	}
+	resp, err := a.httpClient.DoJSON(ctx, AdapterHTTPRequest{
+		Method: httpMethodForAction(action),
+		URL:    a.endpoint(path),
+		Headers: map[string]string{
+			"X-Request-ID":   req.RequestID,
+			"X-External-Ref": req.ExternalRef,
+		},
+		Body:    body,
+		Timeout: 30 * time.Second,
+	})
+	if err != nil {
+		return types.AdapterResponse{}, err
+	}
+	status := strings.TrimSpace(jsonString(resp.JSON, "status", "success"))
+	if status == "" {
+		status = "success"
+	}
+	return types.AdapterResponse{
+		Platform:   a.name,
+		Action:     action,
+		Status:     status,
+		Mode:       "live",
+		Configured: a.isConfigured(),
+		RequestID:  req.RequestID,
+		Data: map[string]any{
+			"http_status":    resp.StatusCode,
+			"response":       resp.JSON,
+			"base_url":       a.baseURL,
+			"external_ref":   req.ExternalRef,
+			"request_action": action,
+		},
+	}, nil
+}
+
+func jsonString(m map[string]any, key, fallback string) string {
+	if m == nil {
+		return fallback
+	}
+	if v, ok := m[key].(string); ok && strings.TrimSpace(v) != "" {
+		return v
+	}
+	return fallback
 }
 
 func (a BaseAdapter) validateRequest(req types.AdapterRequest) error {

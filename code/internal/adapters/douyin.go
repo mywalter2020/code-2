@@ -14,18 +14,26 @@ func NewDouyinAdapter(store *CredentialStore, dryRun bool) *DouyinAdapter {
 }
 
 func (a *DouyinAdapter) Publish(ctx context.Context, req types.AdapterRequest) (types.AdapterResponse, error) {
-	_ = ctx
-	return a.Respond("publish", "published", req)
+	if a.dryRun {
+		return a.Respond("publish", "published", req)
+	}
+	return a.liveCall(ctx, "publish", req, "/publish", requestPayload(req))
 }
 func (a *DouyinAdapter) Update(ctx context.Context, req types.AdapterRequest) (types.AdapterResponse, error) {
-	_ = ctx
-	return a.Respond("update", "updated", req)
+	if a.dryRun {
+		return a.Respond("update", "updated", req)
+	}
+	return a.liveCall(ctx, "update", req, "/update", requestPayload(req))
 }
 func (a *DouyinAdapter) OnShelf(ctx context.Context, req types.AdapterRequest) (types.AdapterResponse, error) {
-	_ = ctx
-	return a.Respond("on_shelf", "on_shelf", req)
+	if a.dryRun {
+		return a.Respond("on_shelf", "on_shelf", req)
+	}
+	return a.liveCall(ctx, "on_shelf", req, "/on_shelf", requestPayload(req))
 }
 func (a *DouyinAdapter) OffShelf(ctx context.Context, req types.AdapterRequest) (types.AdapterResponse, error) {
-	_ = ctx
-	return a.Respond("off_shelf", "off_shelf", req)
+	if a.dryRun {
+		return a.Respond("off_shelf", "off_shelf", req)
+	}
+	return a.liveCall(ctx, "off_shelf", req, "/off_shelf", requestPayload(req))
 }
