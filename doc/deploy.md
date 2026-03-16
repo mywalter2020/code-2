@@ -13,6 +13,7 @@
 当前版本仍需注意：
 
 - 平台 adapter 已具备 live HTTP 调用骨架，但默认仍建议先以 dry-run 验证
+- Alibaba 已加入签名 envelope 骨架（app_key / method / timestamp / v / sign / payload）
 - 若要真实执行发布，必须补齐平台 API 协议、鉴权签名与正式凭据
 
 ## Recommended production baseline
@@ -49,6 +50,8 @@
 - `JUYU_ALIBABA_APP_KEY`
 - `JUYU_ALIBABA_SECRET`
 - `JUYU_ALIBABA_BASE_URL`
+- `JUYU_ALIBABA_SIGN_METHOD`
+- `JUYU_ALIBABA_VERSION`
 - `JUYU_TAOBAO_APP_KEY`
 - `JUYU_TAOBAO_SECRET`
 - `JUYU_TAOBAO_BASE_URL`

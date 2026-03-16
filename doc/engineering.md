@@ -34,5 +34,5 @@ The repository now includes:
 2. Add real adapters for platform APIs
 3. Add unit tests for server/store layers
 4. Add OpenAPI/Swagger docs
-5. Complete platform-specific auth/signature protocol for at least one live adapter
+5. Complete Alibaba-specific request field mapping and response translation on top of the signature skeleton
 6. Add deployment manifests and CI
