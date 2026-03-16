@@ -44,15 +44,29 @@ func TestAlibabaItemPayloadMapping(t *testing.T) {
 
 func TestParseAlibabaResponse(t *testing.T) {
 	resp := parseAlibabaResponse(AdapterHTTPResponse{StatusCode: 200, JSON: map[string]any{
-		"status":      "published",
-		"remote_id":   "ali-123",
-		"sub_msg":     "ok",
-		"extra_field": true,
+		"response": map[string]any{
+			"status":      "published",
+			"remote_id":   "ali-123",
+			"sub_msg":     "ok",
+			"extra_field": true,
+		},
 	}}, "publish", "req-1")
 	if resp.Status != "published" {
 		t.Fatalf("expected published, got %+v", resp)
 	}
 	if resp.Data["remote_id"] != "ali-123" {
 		t.Fatalf("expected remote id, got %+v", resp.Data)
+	}
+}
+
+func TestParseAlibabaResponseWithErrorCode(t *testing.T) {
+	resp := parseAlibabaResponse(AdapterHTTPResponse{StatusCode: 200, JSON: map[string]any{
+		"data": map[string]any{
+			"error_code":    "INVALID_PARAM",
+			"error_message": "bad title",
+		},
+	}}, "publish", "req-1")
+	if resp.Data["error_code"] != "INVALID_PARAM" {
+		t.Fatalf("expected error code, got %+v", resp.Data)
 	}
 }

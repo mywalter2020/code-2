@@ -15,23 +15,25 @@ import (
 )
 
 type AlibabaLiveOptions struct {
-	PublishPath  string
-	UpdatePath   string
-	OnShelfPath  string
-	OffShelfPath string
-	SignMethod   string
-	Version      string
-	MethodMap    map[string]string
+	PublishPath   string
+	UpdatePath    string
+	OnShelfPath   string
+	OffShelfPath  string
+	SignMethod    string
+	Version       string
+	RequestFormat string
+	MethodMap     map[string]string
 }
 
 func defaultAlibabaLiveOptions() AlibabaLiveOptions {
 	return AlibabaLiveOptions{
-		PublishPath:  "/publish",
-		UpdatePath:   "/update",
-		OnShelfPath:  "/on_shelf",
-		OffShelfPath: "/off_shelf",
-		SignMethod:   config.GetEnv("JUYU_ALIBABA_SIGN_METHOD", "md5"),
-		Version:      config.GetEnv("JUYU_ALIBABA_VERSION", "2.0"),
+		PublishPath:   "/publish",
+		UpdatePath:    "/update",
+		OnShelfPath:   "/on_shelf",
+		OffShelfPath:  "/off_shelf",
+		SignMethod:    config.GetEnv("JUYU_ALIBABA_SIGN_METHOD", "md5"),
+		Version:       config.GetEnv("JUYU_ALIBABA_VERSION", "2.0"),
+		RequestFormat: config.GetEnv("JUYU_ALIBABA_REQUEST_FORMAT", "json"),
 		MethodMap: map[string]string{
 			"publish":   "alibaba.item.publish",
 			"update":    "alibaba.item.update",
@@ -49,20 +51,31 @@ func (a *AlibabaAdapter) livePath(action string) string {
 	opts := a.liveOptions()
 	switch action {
 	case "publish":
-		return opts.PublishPath
+		return firstNonEmpty(config.GetEnv("JUYU_ALIBABA_PUBLISH_PATH", ""), opts.PublishPath)
 	case "update":
-		return opts.UpdatePath
+		return firstNonEmpty(config.GetEnv("JUYU_ALIBABA_UPDATE_PATH", ""), opts.UpdatePath)
 	case "on_shelf":
-		return opts.OnShelfPath
+		return firstNonEmpty(config.GetEnv("JUYU_ALIBABA_ON_SHELF_PATH", ""), opts.OnShelfPath)
 	case "off_shelf":
-		return opts.OffShelfPath
+		return firstNonEmpty(config.GetEnv("JUYU_ALIBABA_OFF_SHELF_PATH", ""), opts.OffShelfPath)
 	default:
 		return "/" + action
 	}
 }
 
 func (a *AlibabaAdapter) liveMethod(action string) string {
-	return a.liveOptions().MethodMap[action]
+	switch action {
+	case "publish":
+		return firstNonEmpty(config.GetEnv("JUYU_ALIBABA_PUBLISH_METHOD", ""), a.liveOptions().MethodMap[action])
+	case "update":
+		return firstNonEmpty(config.GetEnv("JUYU_ALIBABA_UPDATE_METHOD", ""), a.liveOptions().MethodMap[action])
+	case "on_shelf":
+		return firstNonEmpty(config.GetEnv("JUYU_ALIBABA_ON_SHELF_METHOD", ""), a.liveOptions().MethodMap[action])
+	case "off_shelf":
+		return firstNonEmpty(config.GetEnv("JUYU_ALIBABA_OFF_SHELF_METHOD", ""), a.liveOptions().MethodMap[action])
+	default:
+		return a.liveOptions().MethodMap[action]
+	}
 }
 
 func (a *AlibabaAdapter) signedPayload(action string, req types.AdapterRequest) (map[string]any, error) {
@@ -111,6 +124,10 @@ func (a *AlibabaAdapter) liveInvoke(ctx context.Context, action string, req type
 	if err != nil {
 		return types.AdapterResponse{}, err
 	}
+	contentType := "application/json"
+	if strings.EqualFold(a.liveOptions().RequestFormat, "form") || strings.EqualFold(a.liveOptions().RequestFormat, "x-www-form-urlencoded") {
+		contentType = "application/x-www-form-urlencoded"
+	}
 	resp, err := a.httpClient.DoJSON(ctx, AdapterHTTPRequest{
 		Method: httpMethodForAction(action),
 		URL:    a.endpoint(a.livePath(action)),
@@ -118,8 +135,9 @@ func (a *AlibabaAdapter) liveInvoke(ctx context.Context, action string, req type
 			"X-Request-ID":   req.RequestID,
 			"X-External-Ref": req.ExternalRef,
 		},
-		Body:    body,
-		Timeout: 30 * time.Second,
+		Body:        body,
+		ContentType: contentType,
+		Timeout:     30 * time.Second,
 	})
 	if err != nil {
 		return types.AdapterResponse{}, err

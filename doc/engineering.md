@@ -34,5 +34,6 @@ The repository now includes:
 2. Add real adapters for platform APIs
 3. Add unit tests for server/store layers
 4. Add OpenAPI/Swagger docs
-5. Validate Alibaba protocol details against real platform docs and replace placeholder method/path names
-6. Add deployment manifests and CI
+5. Validate Alibaba protocol details against real platform docs and replace placeholder method/path names with real values
+6. Add platform-specific auth headers/query handling if the real Alibaba protocol requires them
+7. Add deployment manifests and CI

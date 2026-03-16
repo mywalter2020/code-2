@@ -118,19 +118,27 @@ func extractPublish(payload map[string]any) types.PublishRequest {
 }
 
 func parseAlibabaResponse(resp AdapterHTTPResponse, action, requestID string) types.AdapterResponse {
-	status := firstNonEmpty(anyString(resp.JSON["status"]), anyString(resp.JSON["result"]), defaultStatusForAction(action))
+	body := normalizeAlibabaResponse(resp.JSON)
+	status := firstNonEmpty(anyString(body["status"]), anyString(body["result"]), defaultStatusForAction(action))
 	remoteID := firstNonEmpty(
-		anyString(resp.JSON["remote_id"]),
-		anyString(resp.JSON["item_id"]),
-		anyString(resp.JSON["id"]),
+		anyString(body["remote_id"]),
+		anyString(body["item_id"]),
+		anyString(body["id"]),
 	)
-	errMsg := firstNonEmpty(anyString(resp.JSON["error_message"]), anyString(resp.JSON["sub_msg"]), anyString(resp.JSON["message"]))
+	errCode := firstNonEmpty(anyString(body["error_code"]), anyString(body["sub_code"]), anyString(body["code"]))
+	errMsg := firstNonEmpty(anyString(body["error_message"]), anyString(body["sub_msg"]), anyString(body["message"]))
+	if errCode != "" && errMsg == "" {
+		errMsg = errCode
+	}
 	data := map[string]any{
 		"http_status": resp.StatusCode,
 		"response":    resp.JSON,
 	}
 	if remoteID != "" {
 		data["remote_id"] = remoteID
+	}
+	if errCode != "" {
+		data["error_code"] = errCode
 	}
 	if errMsg != "" {
 		data["error_message"] = errMsg
@@ -144,6 +152,18 @@ func parseAlibabaResponse(resp AdapterHTTPResponse, action, requestID string) ty
 		Configured: true,
 		Data:       data,
 	}
+}
+
+func normalizeAlibabaResponse(m map[string]any) map[string]any {
+	if m == nil {
+		return map[string]any{}
+	}
+	for _, key := range []string{"data", "result", "response"} {
+		if nested, ok := m[key].(map[string]any); ok && len(nested) > 0 {
+			return nested
+		}
+	}
+	return m
 }
 
 func defaultStatusForAction(action string) string {

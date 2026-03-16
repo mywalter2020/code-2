@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -20,11 +21,12 @@ type AdapterHTTPClient struct {
 }
 
 type AdapterHTTPRequest struct {
-	Method  string
-	URL     string
-	Headers map[string]string
-	Body    any
-	Timeout time.Duration
+	Method      string
+	URL         string
+	Headers     map[string]string
+	Body        any
+	ContentType string
+	Timeout     time.Duration
 }
 
 type AdapterHTTPResponse struct {
@@ -46,13 +48,24 @@ func (c *AdapterHTTPClient) DoJSON(ctx context.Context, req AdapterHTTPRequest) 
 	if method == "" {
 		method = http.MethodPost
 	}
+	contentType := strings.TrimSpace(req.ContentType)
+	if contentType == "" {
+		contentType = "application/json"
+	}
 	var bodyReader io.Reader
 	if req.Body != nil {
-		payload, err := json.Marshal(req.Body)
-		if err != nil {
-			return AdapterHTTPResponse{}, err
+		switch contentType {
+		case "application/x-www-form-urlencoded":
+			values := url.Values{}
+			flattenFormValues("", req.Body, values)
+			bodyReader = strings.NewReader(values.Encode())
+		default:
+			payload, err := json.Marshal(req.Body)
+			if err != nil {
+				return AdapterHTTPResponse{}, err
+			}
+			bodyReader = bytes.NewReader(payload)
 		}
-		bodyReader = bytes.NewReader(payload)
 	}
 	if req.Timeout > 0 {
 		var cancel context.CancelFunc
@@ -63,7 +76,7 @@ func (c *AdapterHTTPClient) DoJSON(ctx context.Context, req AdapterHTTPRequest) 
 	if err != nil {
 		return AdapterHTTPResponse{}, err
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Content-Type", contentType)
 	httpReq.Header.Set("Accept", "application/json")
 	for k, v := range req.Headers {
 		if strings.TrimSpace(k) == "" {
