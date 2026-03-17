@@ -23,11 +23,20 @@ type Server struct {
 	credentialStore interface {
 		List() []types.AdapterCredentials
 	}
-	apiKey string
+	apiKey       string
+	operatorAuth operatorAuth
 }
 
-func New(orc *orchestrator.Orchestrator, rg *registry.Registry, abilityMetadata []types.AbilityMetadata, masterMetadata []types.MasterAgentMetadata, bindingViews []types.BindingView, apiKey string) *Server {
-	return &Server{orc: orc, rg: rg, abilityMetadata: abilityMetadata, masterMetadata: masterMetadata, bindingViews: bindingViews, apiKey: apiKey}
+func New(orc *orchestrator.Orchestrator, rg *registry.Registry, abilityMetadata []types.AbilityMetadata, masterMetadata []types.MasterAgentMetadata, bindingViews []types.BindingView, apiKey string, operatorTokens string) *Server {
+	return &Server{
+		orc:             orc,
+		rg:              rg,
+		abilityMetadata: abilityMetadata,
+		masterMetadata:  masterMetadata,
+		bindingViews:    bindingViews,
+		apiKey:          apiKey,
+		operatorAuth:    newOperatorAuth(operatorTokens),
+	}
 }
 
 func (s *Server) Register(mux *http.ServeMux) {
@@ -55,12 +64,24 @@ func (s *Server) handleExecute(w http.ResponseWriter, r *http.Request) {
 	if !s.requireWriteAuth(w, r) {
 		return
 	}
+	identity, ok := s.requireOperator(w, r)
+	if !ok {
+		return
+	}
 
 	var req types.Request
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&req); err != nil {
 		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
 		return
 	}
+	operator, err := pickOperator(req.Operator, identity)
+	if err != nil {
+		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		return
+	}
+	req.Operator = operator
 
 	resp, err := s.orc.Execute(r.Context(), req)
 	if err != nil {
@@ -110,12 +131,23 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 		if !s.requireWriteAuth(w, r) {
 			return
 		}
+		identity, ok := s.requireOperator(w, r)
+		if !ok {
+			return
+		}
 		var req types.ConfirmRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&req); err != nil {
 			writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
 			return
 		}
-		task, err := s.orc.Confirm(r.Context(), taskID, req.Approved, req.Comment, req.Approver)
+		approver, err := pickOperator(req.Approver, identity)
+		if err != nil {
+			writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+			return
+		}
+		task, err := s.orc.Confirm(r.Context(), taskID, req.Approved, req.Comment, approver)
 		if err != nil {
 			writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), task)
 			return
@@ -127,11 +159,17 @@ func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 		if !s.requireWriteAuth(w, r) {
 			return
 		}
+		if _, ok := s.requireOperator(w, r); !ok {
+			return
+		}
 		s.handleTaskCancel(w, r, taskID)
 		return
 	}
 	if len(parts) == 2 && parts[1] == "retry" && r.Method == http.MethodPost {
 		if !s.requireWriteAuth(w, r) {
+			return
+		}
+		if _, ok := s.requireOperator(w, r); !ok {
 			return
 		}
 		s.handleTaskRetry(w, r, taskID)

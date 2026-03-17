@@ -16,7 +16,7 @@ import (
 	"juyu-ai-platform/internal/types"
 )
 
-func newTestServer(t *testing.T, apiKey string) *Server {
+func newTestServer(t *testing.T, apiKey string, operatorTokens string) *Server {
 	t.Helper()
 
 	adapterRegistry := adapters.NewRegistry()
@@ -50,13 +50,14 @@ func newTestServer(t *testing.T, apiKey string) *Server {
 		BuildMasterMetadata([]types.MasterAgent{{Code: "product_ops", Name: "Product Ops", SceneType: "product", Enabled: true}}),
 		BuildBindingViews([]types.Binding{{MasterAgent: "product_ops"}}),
 		apiKey,
+		operatorTokens,
 	)
 	AttachAdapterRuntime(srv, adapterRegistry, adapters.NewCredentialStore())
 	return srv
 }
 
 func TestExecuteRequiresAPIKey(t *testing.T) {
-	srv := newTestServer(t, "secret")
+	srv := newTestServer(t, "secret", "")
 	mux := http.NewServeMux()
 	srv.Register(mux)
 
@@ -80,7 +81,7 @@ func TestExecuteRequiresAPIKey(t *testing.T) {
 }
 
 func TestExecuteWithAPIKeyCreatesTask(t *testing.T) {
-	srv := newTestServer(t, "secret")
+	srv := newTestServer(t, "secret", "")
 	mux := http.NewServeMux()
 	srv.Register(mux)
 
@@ -111,11 +112,63 @@ func TestExecuteWithAPIKeyCreatesTask(t *testing.T) {
 	}
 }
 
+func TestExecuteUsesOperatorIdentityHeader(t *testing.T) {
+	srv := newTestServer(t, "secret", "alice:token-1")
+	mux := http.NewServeMux()
+	srv.Register(mux)
+
+	req := httptest.NewRequest(http.MethodPost, "/execute", body(`{"scene":"product","input":"demo","payload":{"platform":"alibaba"}}`))
+	req.Header.Set("X-API-Key", "secret")
+	req.Header.Set("X-Operator-ID", "alice")
+	req.Header.Set("X-Operator-Token", "token-1")
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	resp := decodeAPIResponse(t, rec)
+	data := resp.Data.(map[string]any)
+	if data["task_id"] == "" {
+		t.Fatal("expected task id")
+	}
+
+	detail := httptest.NewRecorder()
+	mux.ServeHTTP(detail, httptest.NewRequest(http.MethodGet, "/tasks/"+data["task_id"].(string), nil))
+	if detail.Code != http.StatusOK {
+		t.Fatalf("expected 200 for task detail, got %d", detail.Code)
+	}
+	taskResp := decodeAPIResponse(t, detail)
+	taskData := taskResp.Data.(map[string]any)
+	if taskData["operator"] != "alice" {
+		t.Fatalf("expected operator alice, got %v", taskData["operator"])
+	}
+}
+
+func TestExecuteRejectsOperatorMismatch(t *testing.T) {
+	srv := newTestServer(t, "secret", "alice:token-1")
+	mux := http.NewServeMux()
+	srv.Register(mux)
+
+	req := httptest.NewRequest(http.MethodPost, "/execute", body(`{"scene":"product","input":"demo","operator":"bob","payload":{"platform":"alibaba"}}`))
+	req.Header.Set("X-API-Key", "secret")
+	req.Header.Set("X-Operator-ID", "alice")
+	req.Header.Set("X-Operator-Token", "token-1")
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestProviderAdminUpdatesRuntimeConfig(t *testing.T) {
 	t.Setenv("CONTENT_GEN_PROVIDER", "stub")
 	t.Setenv("PAGE_GEN_PROVIDER", "stub")
 
-	srv := newTestServer(t, "secret")
+	srv := newTestServer(t, "secret", "")
 	mux := http.NewServeMux()
 	srv.Register(mux)
 

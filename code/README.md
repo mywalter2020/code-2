@@ -4,7 +4,7 @@
 
 - 多主控 Agent 路由
 - 多能力 Agent 注册中心
-- 平台 adapter 接口层（当前含 Alibaba stub）
+- 平台 adapter 接口层（当前含 Alibaba / Taobao / Douyin stub 与协议骨架）
 - 配置中心驱动绑定关系
 - workflow 顺序执行
 - 人工确认节点标记
@@ -14,9 +14,12 @@
 - 商品 / 发布 / 确认三类业务对象模型
 - 最小前端演示骨架（`/ui/`，含任务概览 / 预览卡片 / 确认操作 / 筛选）
 - 可选 API Key 写操作鉴权（`JUYU_API_KEY`）
+- 可选操作员身份鉴别（`JUYU_OPERATOR_TOKENS` + `X-Operator-ID` / `X-Operator-Token`）
 - `content_gen` / `page_gen` 已抽象为通用 provider 接口（当前支持 `stub` / `nvidia` / `openai_compat`）
 - 执行日志与失败状态
 - memory / sqlite / postgres 三种任务存储模式
+- 更严格的 JSON 请求解析（拒绝未知字段）
+- 基础 HTTP 超时配置（header/read/write/idle）
 
 ## 目录
 
@@ -25,7 +28,7 @@
 - `internal/router`：场景到大 Agent 路由
 - `internal/registry`：小 Agent 注册中心
 - `internal/orchestrator`：编排执行与任务流
-- `internal/store`：任务存储（当前为内存版）
+- `internal/store`：任务存储
 - `internal/agents`：能力 Agent 实现
 - `internal/adapters`：平台适配器接口与实现桩
 - `internal/server`：HTTP 接口层
@@ -34,7 +37,7 @@
 ## 接口
 
 ### `GET /healthz`
-健康检查
+健康检查（包含 auth/runtime 摘要）
 
 ### `GET /abilities`
 查看当前注册的小 Agent 能力列表
@@ -96,6 +99,37 @@
 ### `POST /tasks/{task_id}/retry`
 重试任务
 
+更完整接口描述见：`../doc/openapi.yaml`
+
+## 鉴权与操作员身份
+
+### 1) 写接口 API Key（可选）
+
+如果设置了 `JUYU_API_KEY`，所有写接口都需要：
+
+- `X-API-Key: <key>`，或
+- `Authorization: Bearer <key>`
+
+### 2) 操作员身份（可选但推荐）
+
+如果设置了 `JUYU_OPERATOR_TOKENS`，写接口还需要提供操作员身份头：
+
+```bash
+JUYU_OPERATOR_TOKENS='alice:token-a,bob:token-b'
+```
+
+请求头：
+
+- `X-Operator-ID: alice`
+- `X-Operator-Token: token-a`
+- `X-Operator-Name: Alice Zhang`（可选，仅展示）
+
+行为规则：
+
+- `POST /execute` 中 body 的 `operator` 为空时，会自动使用 `X-Operator-ID`
+- `POST /tasks/{id}/confirm` 中 body 的 `approver` 为空时，会自动使用 `X-Operator-ID`
+- 如果 body 里的 `operator` / `approver` 与 header 身份不一致，请求会被拒绝
+
 ## 运行
 
 ```bash
@@ -117,7 +151,7 @@ export PATH="/root/.openclaw/workspace/.local/go/bin:$PATH"
 JUYU_STORE=postgres \
 JUYU_PG_DSN='host=127.0.0.1 port=5432 user=postgres password=postgres dbname=juyu sslmode=disable timezone=Asia/Shanghai' \
 JUYU_CONFIG=/root/.openclaw/workspace/configs/agents.yaml \
-go run ./cmd/platform
+ go run ./cmd/platform
 ```
 
 使用 Docker Compose 一键运行：
@@ -132,6 +166,22 @@ curl http://127.0.0.1:8080/healthz
 ```bash
 JUYU_API_KEY=your-secret-key docker compose up --build -d
 curl -H 'X-API-Key: your-secret-key' -H 'Content-Type: application/json' \
+  -d '{"scene":"product","input":"demo","payload":{"platform":"alibaba"}}' \
+  http://127.0.0.1:8080/execute
+```
+
+启用操作员身份校验：
+
+```bash
+JUYU_API_KEY=your-secret-key \
+JUYU_OPERATOR_TOKENS='walter:operator-token' \
+JUYU_CONFIG=/root/.openclaw/workspace/configs/agents.yaml \
+ go run ./cmd/platform
+
+curl -H 'X-API-Key: your-secret-key' \
+  -H 'X-Operator-ID: walter' \
+  -H 'X-Operator-Token: operator-token' \
+  -H 'Content-Type: application/json' \
   -d '{"scene":"product","input":"demo","payload":{"platform":"alibaba"}}' \
   http://127.0.0.1:8080/execute
 ```
@@ -151,7 +201,7 @@ export JUYU_DOUYIN_CLIENT_SECRET=xxx
 配置 `content_gen` provider：
 
 ```bash
-# 可选：stub | nvidia
+# 可选：stub | nvidia | openai_compat
 export CONTENT_GEN_PROVIDER=nvidia
 export CONTENT_GEN_MODEL=meta/llama-3.1-405b-instruct
 export CONTENT_GEN_TEMPERATURE=0.4
@@ -163,6 +213,14 @@ export CONTENT_GEN_MAX_TOKENS=220
 ```bash
 export NVIDIA_URL=https://integrate.api.nvidia.com/v1/chat/completions
 export NVIDIA_KEY=your-key
+```
+
+如果使用 OpenAI-compatible：
+
+```bash
+export OPENAI_COMPAT_URL=https://your-endpoint/v1/chat/completions
+export OPENAI_COMPAT_KEY=your-key
+export OPENAI_COMPAT_MODEL=gpt-4o-mini
 ```
 
 如果要调 prompt，也可以直接改环境变量：
@@ -181,6 +239,14 @@ export PAGE_GEN_PROMPT_TEMPLATE='请基于以下商品信息生成一个 JSON �
 - dry-run=true 时仍可走通演示链路
 - dry-run=false 时写动作会因缺凭据而失败
 
+## 测试
+
+```bash
+export PATH="/root/.openclaw/workspace/.local/go/bin:$PATH"
+cd /root/.openclaw/workspace/code
+go test ./...
+```
+
 ## 部署与上线准备
 
 部署说明见：`../doc/deploy.md`
@@ -196,25 +262,9 @@ export PAGE_GEN_PROMPT_TEMPLATE='请基于以下商品信息生成一个 JSON �
 
 ## 当前说明
 
-## 业务对象模型
-
-当前预览和执行链路统一使用三类业务对象：
-
-- `types.Product`：商品基础信息
-- `types.PublishRequest`：发布动作载荷
-- `types.ConfirmationPayload`：人工确认快照
-
-编排器会在 `preview.fields` 中输出：
-
-- `product`
-- `publish`
-- `confirmation`
-
-这样前端演示和后续真实平台接入可以共用一套数据骨架。
-
 当前实现还是原型版：
 - 小 Agent 仍以 stub/模拟能力为主
 - 尚未接入真实模型或真实平台 API
-- 尚未支持鉴权、消息队列、并行工作流
+- 尚未支持细粒度 RBAC、持久化 operator directory、消息队列、并行工作流
 
 但整体骨架已经适合作为后续继续开发的基础项目结构。

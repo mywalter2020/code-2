@@ -20,7 +20,11 @@ func NewMemoryStore() *MemoryStore {
 func (s *MemoryStore) Save(task *types.Task) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.tasks[task.ID] = task
+	cloned, err := cloneTask(task)
+	if err != nil {
+		return err
+	}
+	s.tasks[task.ID] = cloned
 	return nil
 }
 
@@ -31,7 +35,7 @@ func (s *MemoryStore) Get(id string) (*types.Task, error) {
 	if !ok {
 		return nil, fmt.Errorf("task not found: %s", id)
 	}
-	return task, nil
+	return cloneTask(task)
 }
 
 func (s *MemoryStore) List(filter types.TaskFilter) ([]types.Task, error) {
@@ -42,7 +46,11 @@ func (s *MemoryStore) List(filter types.TaskFilter) ([]types.Task, error) {
 		if !matchTaskFilter(*task, filter) {
 			continue
 		}
-		items = append(items, *task)
+		cloned, err := cloneTask(task)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *cloned)
 	}
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].CreatedAt.After(items[j].CreatedAt)

@@ -31,6 +31,7 @@ func main() {
 	sqlitePath := config.GetEnv("JUYU_SQLITE_PATH", "juyu.db")
 	pgDSN := config.GetEnv("JUYU_PG_DSN", store.DefaultPostgresDSN())
 	apiKey := config.GetEnv("JUYU_API_KEY", "")
+	operatorTokens := config.GetEnv("JUYU_OPERATOR_TOKENS", "")
 	if err := config.ValidateRuntime(storeDriver, sqlitePath, pgDSN, apiKey, dryRun); err != nil {
 		log.Fatalf("runtime validation failed: %v", err)
 	}
@@ -89,6 +90,7 @@ func main() {
 		server.BuildMasterMetadata(cfg.MasterAgents),
 		server.BuildBindingViews(cfg.Bindings),
 		apiKey,
+		operatorTokens,
 	)
 	server.AttachAdapterRuntime(api, adapterRegistry, credentialStore)
 
@@ -96,8 +98,17 @@ func main() {
 	api.Register(mux)
 
 	addr := ":8080"
+	httpServer := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
 	log.Printf("JuYu AI platform listening on %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := httpServer.ListenAndServe(); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}
 }

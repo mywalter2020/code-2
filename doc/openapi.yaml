@@ -1,208 +1,34 @@
 openapi: 3.0.3
 info:
   title: JuYu AI Platform API
-  version: 0.2.0
+  version: 0.3.0
+  description: |
+    JuYu AI agent platform MVP HTTP API.
+
+    Write operations can be protected in two layers:
+    1. `X-API-Key` or `Authorization: Bearer <key>` when `JUYU_API_KEY` is configured.
+    2. `X-Operator-ID` + `X-Operator-Token` when `JUYU_OPERATOR_TOKENS` is configured.
+
+    Operator identity headers are also used to stamp `operator` / `approver` on task records.
 servers:
   - url: http://localhost:8080
-paths:
-  /:
-    get:
-      summary: Redirect to demo UI
-      responses:
-        '302':
-          description: Redirect to /ui/
-  /ui/:
-    get:
-      summary: Demo UI entry
-      responses:
-        '200':
-          description: HTML page
-  /healthz:
-    get:
-      summary: Health check
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/APIResponse'
-  /abilities:
-    get:
-      summary: List ability agents
-      responses:
-        '200':
-          description: OK
-  /abilities/metadata:
-    get:
-      summary: Get ability metadata
-      responses:
-        '200':
-          description: Ability metadata
-  /agents/metadata:
-    get:
-      summary: Get master agent metadata
-      responses:
-        '200':
-          description: Master agent metadata
-  /bindings:
-    get:
-      summary: Get binding views
-      responses:
-        '200':
-          description: Binding metadata
-  /adapters/health:
-    get:
-      summary: Get adapter health list
-      responses:
-        '200':
-          description: Adapter health list
-  /adapters/descriptors:
-    get:
-      summary: Get adapter descriptors
-      responses:
-        '200':
-          description: Adapter descriptors
-  /adapters/credentials:
-    get:
-      summary: Get adapter credential field model
-      responses:
-        '200':
-          description: Adapter credentials model
-  /execute:
-    post:
-      summary: Execute a scene task
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Request'
-      responses:
-        '200':
-          description: Task accepted or completed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/APIResponse'
-  /tasks:
-    get:
-      summary: List tasks
-      parameters:
-        - in: query
-          name: status
-          schema: { type: string }
-        - in: query
-          name: scene
-          schema: { type: string }
-        - in: query
-          name: operator
-          schema: { type: string }
-        - in: query
-          name: platform
-          schema: { type: string }
-        - in: query
-          name: q
-          schema: { type: string }
-        - in: query
-          name: limit
-          schema: { type: integer }
-        - in: query
-          name: offset
-          schema: { type: integer }
-      responses:
-        '200':
-          description: Task list
-  /tasks/summary:
-    get:
-      summary: Get task summary statistics
-      responses:
-        '200':
-          description: Task summary
-  /tasks/{taskId}:
-    get:
-      summary: Get task detail
-      parameters:
-        - in: path
-          name: taskId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Task detail
-  /tasks/{taskId}/preview:
-    get:
-      summary: Get task preview
-      parameters:
-        - in: path
-          name: taskId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Task preview
-  /tasks/{taskId}/logs:
-    get:
-      summary: Get task logs
-      parameters:
-        - in: path
-          name: taskId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Task logs
-  /tasks/{taskId}/status:
-    get:
-      summary: Get task status summary
-      parameters:
-        - in: path
-          name: taskId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Task status
-  /tasks/{taskId}/confirm:
-    post:
-      summary: Confirm or reject task
-      parameters:
-        - in: path
-          name: taskId
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ConfirmRequest'
-      responses:
-        '200':
-          description: Updated task
-  /tasks/{taskId}/cancel:
-    post:
-      summary: Cancel task
-      parameters:
-        - in: path
-          name: taskId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Updated task
-  /tasks/{taskId}/retry:
-    post:
-      summary: Retry task
-      parameters:
-        - in: path
-          name: taskId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Updated task
 components:
+  securitySchemes:
+    ApiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+    OperatorIDHeader:
+      type: apiKey
+      in: header
+      name: X-Operator-ID
+    OperatorTokenHeader:
+      type: apiKey
+      in: header
+      name: X-Operator-Token
   schemas:
     APIResponse:
       type: object
@@ -211,22 +37,39 @@ components:
         message: { type: string }
         error: { type: string }
         code: { type: string }
-        data: { type: object, additionalProperties: true }
+        data:
+          nullable: true
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: array
+              items: {}
+            - type: string
+            - type: number
+            - type: boolean
     Request:
       type: object
+      required: [scene, input]
       properties:
-        scene: { type: string }
-        input: { type: string }
-        operator: { type: string }
+        scene: { type: string, example: product }
+        input: { type: string, example: 春季女装上新 }
+        operator:
+          type: string
+          description: Optional in body; if operator identity headers are present they must match.
         payload:
           type: object
           additionalProperties: true
+          example:
+            platform: alibaba
     ConfirmRequest:
       type: object
+      required: [approved]
       properties:
         approved: { type: boolean }
         comment: { type: string }
-        approver: { type: string }
+        approver:
+          type: string
+          description: Optional in body; if operator identity headers are present they must match.
     Product:
       type: object
       properties:
@@ -293,10 +136,23 @@ components:
             confirmation:
               $ref: '#/components/schemas/ConfirmationPayload'
           additionalProperties: true
+    TaskLog:
+      type: object
+      properties:
+        time: { type: string, format: date-time }
+        step: { type: integer }
+        agent: { type: string }
+        action: { type: string }
+        message: { type: string }
+        data:
+          type: object
+          additionalProperties: true
     Task:
       type: object
       properties:
         id: { type: string }
+        request:
+          $ref: '#/components/schemas/Request'
         master_agent: { type: string }
         status: { type: string }
         current_step: { type: integer }
@@ -307,8 +163,33 @@ components:
         approver: { type: string }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+        last_confirmed_at: { type: string, format: date-time }
         preview:
           $ref: '#/components/schemas/Preview'
+        results:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        pending_results:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskLog'
+    PageResultTask:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        count: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
     AdapterDescriptor:
       type: object
       properties:
@@ -333,3 +214,269 @@ components:
         missing_fields:
           type: array
           items: { type: string }
+paths:
+  /:
+    get:
+      summary: Redirect to demo UI
+      responses:
+        '302':
+          description: Redirect to /ui/
+  /ui/:
+    get:
+      summary: Demo UI entry
+      responses:
+        '200':
+          description: HTML page
+  /healthz:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+  /abilities:
+    get:
+      summary: List ability agents
+      responses:
+        '200':
+          description: OK
+  /abilities/metadata:
+    get:
+      summary: Get ability metadata
+      responses:
+        '200':
+          description: Ability metadata
+  /agents/metadata:
+    get:
+      summary: Get master agent metadata
+      responses:
+        '200':
+          description: Master agent metadata
+  /bindings:
+    get:
+      summary: Get binding views
+      responses:
+        '200':
+          description: Binding metadata
+  /adapters/health:
+    get:
+      summary: Get adapter health list
+      responses:
+        '200':
+          description: Adapter health list
+  /adapters/descriptors:
+    get:
+      summary: Get adapter descriptors
+      responses:
+        '200':
+          description: Adapter descriptors
+  /adapters/credentials:
+    get:
+      summary: Get adapter credential field model
+      responses:
+        '200':
+          description: Adapter credentials model
+  /admin/providers:
+    get:
+      summary: Get current provider runtime config
+      responses:
+        '200':
+          description: Provider runtime config
+    put:
+      summary: Update provider runtime config for current process
+      security:
+        - ApiKeyHeader: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content_gen:
+                  type: object
+                  additionalProperties: true
+                page_gen:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Updated provider config
+        '401':
+          description: Unauthorized
+  /execute:
+    post:
+      summary: Execute a scene task
+      description: Creates a task, runs workflow steps, and may stop at human confirmation.
+      security:
+        - ApiKeyHeader: []
+        - BearerAuth: []
+        - OperatorIDHeader: []
+          OperatorTokenHeader: []
+      parameters:
+        - in: header
+          name: X-Operator-Name
+          schema: { type: string }
+          required: false
+          description: Optional human-readable operator label.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Request'
+      responses:
+        '200':
+          description: Task accepted or completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+        '400':
+          description: Invalid input or operator mismatch
+        '401':
+          description: Missing/invalid API key or operator token
+  /tasks:
+    get:
+      summary: List tasks
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: scene
+          schema: { type: string }
+        - in: query
+          name: operator
+          schema: { type: string }
+        - in: query
+          name: platform
+          schema: { type: string }
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Task list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+  /tasks/summary:
+    get:
+      summary: Get task summary statistics
+      responses:
+        '200':
+          description: Task summary
+  /tasks/{taskId}:
+    get:
+      summary: Get task detail
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Task detail
+  /tasks/{taskId}/preview:
+    get:
+      summary: Get task preview
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Task preview
+  /tasks/{taskId}/logs:
+    get:
+      summary: Get task logs
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Task logs
+  /tasks/{taskId}/status:
+    get:
+      summary: Get task status summary
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Task status
+  /tasks/{taskId}/confirm:
+    post:
+      summary: Confirm or reject task
+      security:
+        - ApiKeyHeader: []
+        - BearerAuth: []
+        - OperatorIDHeader: []
+          OperatorTokenHeader: []
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmRequest'
+      responses:
+        '200':
+          description: Updated task
+        '400':
+          description: Invalid request or approver mismatch
+        '401':
+          description: Unauthorized
+  /tasks/{taskId}/cancel:
+    post:
+      summary: Cancel task
+      security:
+        - ApiKeyHeader: []
+        - BearerAuth: []
+        - OperatorIDHeader: []
+          OperatorTokenHeader: []
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Updated task
+  /tasks/{taskId}/retry:
+    post:
+      summary: Retry task
+      security:
+        - ApiKeyHeader: []
+        - BearerAuth: []
+        - OperatorIDHeader: []
+          OperatorTokenHeader: []
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Updated task

@@ -59,6 +59,32 @@ func TestMemoryStoreListFiltersAndPagination(t *testing.T) {
 	}
 }
 
+func TestMemoryStoreReturnsCopies(t *testing.T) {
+	s := NewMemoryStore()
+	task := sampleTask("task-1", types.TaskStatusSuccess, "product", "alice", "alibaba", "alpha chair", time.Now())
+	if err := s.Save(task); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	got, err := s.Get("task-1")
+	if err != nil {
+		t.Fatalf("get task: %v", err)
+	}
+	got.Status = types.TaskStatusFailed
+	got.Request.Payload["platform"] = "tampered"
+
+	reloaded, err := s.Get("task-1")
+	if err != nil {
+		t.Fatalf("reload task: %v", err)
+	}
+	if reloaded.Status != types.TaskStatusSuccess {
+		t.Fatalf("expected stored task status unchanged, got %s", reloaded.Status)
+	}
+	if reloaded.Request.Payload["platform"] != "alibaba" {
+		t.Fatalf("expected stored payload unchanged, got %v", reloaded.Request.Payload["platform"])
+	}
+}
+
 func TestSQLiteStoreRoundTripAndFilters(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "tasks.db")
 	s, err := NewSQLiteStore(ParseDSN(dbPath))
