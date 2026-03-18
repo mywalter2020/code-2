@@ -714,7 +714,359 @@ agent/
 
 ---
 
-## 19. 后续待确认事项
+## 19. V1 标准案例：URL 产品学习到预览页生成
+
+为了让系统设计不漂移，V1 需要围绕一个标准案例推进实现。该案例既能覆盖分析、PRD、Todo、执行、并行、确认和统一返回，也能直接作为前后端联调样板。
+
+### 19.1 用户输入
+
+用户示例输入：
+
+> 我想学习下某个 URL 里的这个产品，你帮我处理下。
+
+用户真实意图不是简单抓取网页，而是希望系统：
+
+1. 理解 URL 对应的产品
+2. 形成需求说明 / 产品说明
+3. 生成执行 Todo List
+4. 产出一组商品素材
+5. 把结果交给前端生成一个模拟预览页面
+
+### 19.2 该案例的目标
+
+该案例的最终目标不是“返回一段总结”，而是生成一套完整的可预览商品内容资产，包括：
+
+- 产品标题
+- 产品图片相关文案
+- 图片描述图内容
+- 产品轮播图内容
+- 产品视频脚本或视频描述
+- 供前端直接消费的 Preview Payload
+
+### 19.3 案例主流程
+
+```text
+用户输入 URL
+  -> 分析 Agent 读取并理解产品
+  -> 生成需求说明 / 产品说明（PRD）
+  -> 用户确认 PRD
+  -> Todo Agent 生成 Todo List
+  -> 用户确认 Todo List
+  -> Executor Agent 按 Todo 执行
+  -> 汇总产物
+  -> 返回前端 Preview Payload
+  -> 前端生成模拟预览页面
+```
+
+### 19.4 阶段拆解
+
+#### Stage A: 产品理解
+
+输入：
+
+- 产品 URL
+- 用户原始需求
+- 可选参数（平台、语言、风格、目标受众）
+
+分析 Agent 要完成：
+
+- 抓取和解析 URL 内容
+- 理解该产品是什么
+- 提取核心卖点
+- 提取关键结构信息
+- 形成可供后续执行的产品说明
+
+该阶段输出：
+
+- 产品基础信息
+- 产品摘要
+- 卖点列表
+- 使用场景
+- 待确认项
+- PRD 草案
+
+#### Stage B: PRD 确认
+
+用户确认：
+
+- 对产品的理解是否正确
+- 需要保留哪些卖点
+- 素材范围是否完整
+- 风格是否有特殊要求
+
+该阶段是关键确认点，未确认前不进入大规模生成阶段。
+
+#### Stage C: Todo 生成
+
+Todo Agent 基于 PRD 生成 Todo List，形成执行计划。
+
+Todo 的主要目标包括：
+
+- 生成产品标题
+- 生成卖点摘要
+- 生成产品图片相关文案
+- 生成图片描述图内容
+- 生成产品轮播图内容
+- 生成产品视频脚本
+- 汇总预览结构
+- 生成前端所需的 Preview Payload
+
+#### Stage D: Todo 确认
+
+用户确认 Todo List 是否合理，包括：
+
+- 是否需要视频内容
+- 是否暂时只做文案，不做真实图片
+- 哪些内容必须先做
+- 是否需要限制输出语言或平台风格
+
+#### Stage E: 执行
+
+Executor Agent 读取确认后的 Todo List，进入执行阶段。
+
+执行原则：
+
+- 前置理解任务必须先完成
+- 可独立的素材生成任务允许并行
+- 依赖所有素材结果的汇总任务必须后置
+- 执行方式采用 ReAct + Plan-and-Execute
+
+#### Stage F: 统一返回
+
+当所有 Todo 完成后，系统统一返回：
+
+- 产品理解结果
+- PRD
+- Todo List
+- 各类素材产物
+- Preview Payload
+- 状态与摘要信息
+
+### 19.5 并行关系说明
+
+这个案例里，并行能力非常重要。
+
+#### 必须串行的部分
+
+以下步骤必须按顺序进行：
+
+1. URL 解析与产品理解
+2. PRD 生成
+3. PRD 确认
+4. Todo 生成
+5. Todo 确认
+
+这些属于上游结构化阶段，不能跳过。
+
+#### 可以并行的部分
+
+在 Todo 确认后，多个内容资产可以并行生成，例如：
+
+- 产品标题
+- 产品图片文案
+- 图片描述图内容
+- 产品轮播图内容
+- 产品视频脚本
+
+这些任务可以被视为同一个并行组，待全部完成后再进行汇总。
+
+#### 必须后置的部分
+
+以下步骤通常需要等待前面的并行任务完成：
+
+- 汇总生成物料结构
+- 构建 Preview Payload
+- 返回统一结果
+
+### 19.6 PRD 示例结构
+
+该案例中的 PRD 建议至少包含以下内容：
+
+#### 输入信息
+
+- 原始 URL
+- 用户原始需求
+
+#### 产品理解
+
+- 产品名称
+- 产品类型
+- 核心功能
+- 核心卖点
+- 目标人群
+- 适用场景
+- 差异化特点
+
+#### 交付目标
+
+- 生成产品标题
+- 生成图片描述素材
+- 生成轮播图内容
+- 生成视频脚本
+- 生成前端预览数据
+
+#### 风格要求
+
+- 文案风格
+- 输出语言
+- 视觉风格说明
+
+#### 待确认项
+
+- 是否需要视频
+- 是否生成真实图片
+- 是否只需要模拟预览
+- 是否需要多平台版本
+
+### 19.7 Todo List 示例结构
+
+Todo 不应只是字符串数组，而应是结构化任务列表。示例：
+
+```json
+[
+  {
+    "id": "todo_1",
+    "title": "生成产品标题",
+    "type": "title_generation",
+    "status": "pending",
+    "depends_on": [],
+    "parallel_group": "content_assets",
+    "acceptance_criteria": [
+      "标题准确体现产品核心卖点",
+      "标题适合目标平台展示"
+    ]
+  },
+  {
+    "id": "todo_2",
+    "title": "生成图片描述图内容",
+    "type": "feature_image_copy",
+    "status": "pending",
+    "depends_on": [],
+    "parallel_group": "content_assets"
+  },
+  {
+    "id": "todo_3",
+    "title": "生成产品轮播图内容",
+    "type": "carousel_generation",
+    "status": "pending",
+    "depends_on": [],
+    "parallel_group": "content_assets"
+  },
+  {
+    "id": "todo_4",
+    "title": "生成产品视频脚本",
+    "type": "video_script_generation",
+    "status": "pending",
+    "depends_on": [],
+    "parallel_group": "content_assets"
+  },
+  {
+    "id": "todo_5",
+    "title": "汇总预览页面数据",
+    "type": "preview_payload_build",
+    "status": "pending",
+    "depends_on": ["todo_1", "todo_2", "todo_3", "todo_4"]
+  }
+]
+```
+
+### 19.8 执行期 Skill / Function 映射建议
+
+该案例下建议的功能模块包括：
+
+#### 输入理解类
+
+- `fetch_product_url`
+- `parse_product_page`
+- `extract_product_info`
+
+#### 文案生成类
+
+- `generate_product_title`
+- `generate_product_selling_points`
+- `generate_image_caption`
+- `generate_carousel_copy`
+- `generate_video_script`
+
+#### 结构整理类
+
+- `merge_generation_results`
+- `build_preview_payload`
+
+V1 可以先只产出文案与结构化描述，不要求真实生成图片或视频文件。真实视觉素材可以在后续版本扩展。
+
+### 19.9 最终返回给前端的数据结构
+
+该案例的最终返回不应只是文本，而应是前端可直接消费的结构化 payload。示例：
+
+```json
+{
+  "session_id": "sess_001",
+  "stage": "done",
+  "status": "success",
+  "artifacts": {
+    "product": {
+      "source_url": "https://example.com/product/123",
+      "name": "某产品",
+      "summary": "这是一款..."
+    },
+    "prd": {
+      "markdown": "..."
+    },
+    "todo_list": [],
+    "materials": {
+      "title": "xxx产品标题",
+      "image_descriptions": [
+        "图1描述...",
+        "图2描述..."
+      ],
+      "carousel_items": [
+        {
+          "title": "卖点1",
+          "description": "..."
+        },
+        {
+          "title": "卖点2",
+          "description": "..."
+        }
+      ],
+      "video_script": {
+        "hook": "...",
+        "scenes": []
+      }
+    },
+    "preview": {
+      "hero_title": "xxx产品标题",
+      "hero_subtitle": "产品核心卖点",
+      "feature_blocks": [],
+      "carousel": [],
+      "video_section": {}
+    }
+  }
+}
+```
+
+前端应直接消费 `preview` 字段来生成模拟预览页面。
+
+### 19.10 该案例对系统的验证价值
+
+该案例几乎覆盖了 V1 的全部关键能力：
+
+- URL 输入型任务
+- Analyst Agent 生成 PRD
+- 用户确认 PRD
+- Todo Agent 生成 Todo List
+- 用户确认 Todo List
+- Executor Agent 按 Todo 执行
+- Todo 多线并行
+- 统一结果汇总
+- 返回前端 Preview Payload
+
+因此，该案例应被视为 V1 的标准验收样板。后续系统开发、接口设计、表结构设计和联调，都应优先围绕它进行。
+
+---
+
+## 20. 后续待确认事项
 
 进入正式开发前，还建议继续确认这些问题：
 
@@ -727,7 +1079,7 @@ agent/
 
 ---
 
-## 20. 结论
+## 21. 结论
 
 该项目的本质不是“做一个通用工作流引擎”，而是：
 
