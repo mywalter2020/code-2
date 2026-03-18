@@ -6,6 +6,9 @@
 code/platform
 bin/
 
+# external cloned repos
+code/external-skills/
+
 # logs / temp
 *.log
 *.tmp
