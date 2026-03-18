@@ -53,15 +53,20 @@ create table if not exists execution_records (
   session_id text not null references sessions(id) on delete cascade,
   todo_id text not null,
   todo_version integer not null,
+  parent_execution_id text references execution_records(id) on delete set null,
+  retry_of_execution_id text references execution_records(id) on delete set null,
   executor_agent text not null,
   skill_code text,
   status text not null,
   attempt integer not null default 1,
+  queue_reason text,
   input_payload jsonb not null default '{}'::jsonb,
   output_payload jsonb not null default '{}'::jsonb,
+  metrics jsonb not null default '{}'::jsonb,
   reasoning_summary text,
   error_code text,
   error_message text,
+  created_by text,
   started_at timestamptz,
   finished_at timestamptz,
   created_at timestamptz not null default now(),
@@ -70,6 +75,8 @@ create table if not exists execution_records (
     foreign key (todo_id, session_id, todo_version)
     references todo_items(id, session_id, version)
     on delete cascade,
+  constraint uq_execution_records_attempt
+    unique (session_id, todo_id, todo_version, attempt),
   constraint chk_execution_records_status check (
     status in (
       'queued',
@@ -79,7 +86,15 @@ create table if not exists execution_records (
       'canceled'
     )
   ),
-  constraint chk_execution_records_attempt check (attempt >= 1)
+  constraint chk_execution_records_attempt check (attempt >= 1),
+  constraint chk_execution_records_queue_reason check (
+    queue_reason is null or queue_reason in (
+      'todo_confirmed',
+      'retry_requested',
+      'auto_retry',
+      'resume_requeue'
+    )
+  )
 );
 
 create index if not exists idx_execution_records_session
@@ -87,6 +102,9 @@ create index if not exists idx_execution_records_session
 
 create index if not exists idx_execution_records_todo
   on execution_records(session_id, todo_id, todo_version);
+
+create index if not exists idx_execution_records_retry_of
+  on execution_records(retry_of_execution_id);
 
 create index if not exists idx_execution_records_status
   on execution_records(session_id, status);

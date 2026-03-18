@@ -1,5 +1,5 @@
--- 003_init_logs_agents.sql
--- Agent Runtime V1 draft migration: logs + agents + agent_profiles
+-- 004_init_agents.sql
+-- Agent Runtime V1 draft migration: agents + agent_profiles
 
 begin;
 
@@ -35,33 +35,5 @@ create table if not exists agent_profiles (
 
 create index if not exists idx_agent_profiles_current
   on agent_profiles(agent_code, is_current);
-
-create table if not exists logs (
-  id bigserial primary key,
-  session_id text not null references sessions(id) on delete cascade,
-  execution_id text references execution_records(id) on delete cascade,
-  todo_id text,
-  level text not null,
-  source_type text not null,
-  source_code text not null,
-  message text not null,
-  data jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now(),
-  constraint chk_logs_level check (
-    level in ('debug', 'info', 'warn', 'error')
-  ),
-  constraint chk_logs_source_type check (
-    source_type in ('system', 'agent', 'skill')
-  )
-);
-
-create index if not exists idx_logs_session_created_at
-  on logs(session_id, created_at);
-
-create index if not exists idx_logs_execution_created_at
-  on logs(execution_id, created_at);
-
-create index if not exists idx_logs_level
-  on logs(level);
 
 commit;
