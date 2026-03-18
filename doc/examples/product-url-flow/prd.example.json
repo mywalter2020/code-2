@@ -1,0 +1,45 @@
+{
+  "title": "智能护眼台灯产品学习与内容生成需求",
+  "input": {
+    "url": "https://example.com/products/smart-desk-lamp-pro",
+    "user_message": "我想学习下这个产品，你帮我处理下，然后帮我生成一个可预览的商品内容方案"
+  },
+  "product": {
+    "name": "Smart Desk Lamp Pro",
+    "localized_name": "智能护眼台灯 Pro",
+    "category": "智能家居 / 台灯",
+    "target_users": [
+      "学生",
+      "家庭办公人群",
+      "长时间阅读用户"
+    ],
+    "selling_points": [
+      "多档亮度与色温调节",
+      "护眼无频闪",
+      "智能定时与触控调节",
+      "简洁桌面设计"
+    ],
+    "scenarios": [
+      "夜间学习",
+      "桌面办公",
+      "睡前阅读"
+    ]
+  },
+  "delivery_goals": [
+    "生成适合平台展示的产品标题",
+    "生成图片描述图内容",
+    "生成轮播图卖点内容",
+    "生成短视频脚本",
+    "生成前端预览页面所需数据结构"
+  ],
+  "style_requirements": {
+    "copy_style": "简洁、电商风、突出卖点",
+    "visual_style": "干净、科技感、居家感",
+    "language": "zh-CN"
+  },
+  "open_questions": [
+    "本阶段是否需要真实图片生成",
+    "视频是否只要脚本不做真实剪辑"
+  ],
+  "markdown": "# 智能护眼台灯产品学习与内容生成需求\n\n## 产品理解\n- 产品名称：智能护眼台灯 Pro\n- 类别：智能家居 / 台灯\n- 核心卖点：多档亮度、护眼无频闪、定时、简洁设计\n\n## 交付目标\n- 生成产品标题\n- 生成图片描述图内容\n- 生成轮播图卖点内容\n- 生成视频脚本\n- 生成 preview payload\n"
+}

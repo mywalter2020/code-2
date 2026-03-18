@@ -1,0 +1,89 @@
+{
+  "session_id": "sess_001",
+  "status": "executing",
+  "items": [
+    {
+      "execution_id": "exec_001",
+      "todo_id": "todo_1",
+      "title": "生成产品标题",
+      "executor": "executor",
+      "status": "done",
+      "started_at": "2026-03-18T15:10:00+08:00",
+      "finished_at": "2026-03-18T15:10:04+08:00",
+      "output": {
+        "title": "护眼又好看，这盏智能台灯把桌面氛围感直接拉满"
+      }
+    },
+    {
+      "execution_id": "exec_002",
+      "todo_id": "todo_2",
+      "title": "生成图片描述图内容",
+      "executor": "executor",
+      "status": "done",
+      "started_at": "2026-03-18T15:10:00+08:00",
+      "finished_at": "2026-03-18T15:10:06+08:00",
+      "output": {
+        "image_descriptions": [
+          "无频闪护眼光，长时间阅读更舒适",
+          "亮度与色温自由调节，白天夜晚都合适",
+          "简洁桌面设计，让学习和办公角落更有氛围"
+        ]
+      }
+    },
+    {
+      "execution_id": "exec_003",
+      "todo_id": "todo_3",
+      "title": "生成产品轮播图内容",
+      "executor": "executor",
+      "status": "done",
+      "started_at": "2026-03-18T15:10:01+08:00",
+      "finished_at": "2026-03-18T15:10:07+08:00",
+      "output": {
+        "carousel_items": [
+          {
+            "title": "护眼无频闪",
+            "description": "阅读久一点，眼睛也没那么累。"
+          },
+          {
+            "title": "亮度色温随手调",
+            "description": "学习、办公、睡前阅读都能找到舒服的光。"
+          },
+          {
+            "title": "桌面颜值在线",
+            "description": "干净简约的设计，放在桌上很好看。"
+          }
+        ]
+      }
+    },
+    {
+      "execution_id": "exec_004",
+      "todo_id": "todo_4",
+      "title": "生成产品视频脚本",
+      "executor": "executor",
+      "status": "done",
+      "started_at": "2026-03-18T15:10:01+08:00",
+      "finished_at": "2026-03-18T15:10:08+08:00",
+      "output": {
+        "video_script": {
+          "hook": "桌面氛围感不够？你可能只是少了一盏对的灯。",
+          "scenes": [
+            "开场展示暗环境中的桌面",
+            "点亮台灯，切换不同亮度和色温",
+            "展示阅读和办公场景",
+            "结尾强调护眼与颜值兼具"
+          ]
+        }
+      }
+    },
+    {
+      "execution_id": "exec_005",
+      "todo_id": "todo_5",
+      "title": "汇总前端预览页面数据",
+      "executor": "executor",
+      "status": "running",
+      "started_at": "2026-03-18T15:10:09+08:00",
+      "finished_at": null,
+      "output": {}
+    }
+  ]
+}

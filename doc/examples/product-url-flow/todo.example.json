@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "todo_1",
+      "title": "生成产品标题",
+      "type": "title_generation",
+      "description": "生成适合小红书风格的产品标题，突出护眼、桌面美感和使用场景。",
+      "status": "pending",
+      "depends_on": [],
+      "parallel_group": "content_assets",
+      "acceptance_criteria": [
+        "标题准确体现产品卖点",
+        "适合平台展示",
+        "语言简洁自然"
+      ]
+    },
+    {
+      "id": "todo_2",
+      "title": "生成图片描述图内容",
+      "type": "feature_image_copy",
+      "description": "生成适合描述图使用的文案块，突出护眼、亮度和桌面氛围。",
+      "status": "pending",
+      "depends_on": [],
+      "parallel_group": "content_assets",
+      "acceptance_criteria": [
+        "每个图块聚焦单一卖点",
+        "描述简洁易读"
+      ]
+    },
+    {
+      "id": "todo_3",
+      "title": "生成产品轮播图内容",
+      "type": "carousel_generation",
+      "description": "生成轮播图每一页的标题和描述。",
+      "status": "pending",
+      "depends_on": [],
+      "parallel_group": "content_assets",
+      "acceptance_criteria": [
+        "轮播结构完整",
+        "每页卖点明确"
+      ]
+    },
+    {
+      "id": "todo_4",
+      "title": "生成产品视频脚本",
+      "type": "video_script_generation",
+      "description": "生成一个 20-30 秒短视频脚本，包含开场、卖点展示和收尾。",
+      "status": "pending",
+      "depends_on": [],
+      "parallel_group": "content_assets",
+      "acceptance_criteria": [
+        "脚本适合短视频表达",
+        "卖点节奏清楚"
+      ]
+    },
+    {
+      "id": "todo_5",
+      "title": "汇总前端预览页面数据",
+      "type": "preview_payload_build",
+      "description": "汇总标题、描述图、轮播图和视频脚本，组装 preview payload。",
+      "status": "pending",
+      "depends_on": [
+        "todo_1",
+        "todo_2",
+        "todo_3",
+        "todo_4"
+      ],
+      "parallel_group": null,
+      "acceptance_criteria": [
+        "preview 字段结构完整",
+        "前端可直接消费"
+      ]
+    }
+  ]
+}

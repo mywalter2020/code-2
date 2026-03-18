@@ -1,0 +1,10 @@
+{
+  "input": {
+    "type": "product_url_learning",
+    "url": "https://example.com/products/smart-desk-lamp-pro",
+    "message": "我想学习下这个产品，你帮我处理下，然后帮我生成一个可预览的商品内容方案",
+    "platform": "xiaohongshu",
+    "language": "zh-CN",
+    "style": "clean"
+  }
+}

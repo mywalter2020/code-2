@@ -1,0 +1,39 @@
+{
+  "success": true,
+  "data": {
+    "session_id": "sess_001",
+    "stage": "waiting_prd_confirm",
+    "status": "waiting_prd_confirm",
+    "message": "PRD 已生成，请确认",
+    "artifacts": {
+      "prd": {
+        "title": "智能护眼台灯产品学习与内容生成需求",
+        "background": "用户希望基于产品链接快速理解产品，并生成商品内容资产，用于前端预览页面演示。",
+        "goals": [
+          "提炼产品核心卖点",
+          "生成商品标题与多种内容素材",
+          "返回可供前端渲染的 preview payload"
+        ],
+        "requirements": [
+          "生成产品标题",
+          "生成图片描述图内容",
+          "生成产品轮播图内容",
+          "生成产品视频脚本",
+          "生成前端预览结构数据"
+        ],
+        "open_questions": [
+          "是否需要真实图片生成，仅需文案还是需要视觉素材",
+          "视频是否只需要脚本"
+        ],
+        "markdown": "# 智能护眼台灯产品学习与内容生成需求\n\n## 背景\n用户希望基于产品链接快速理解产品，并生成商品内容资产，用于前端预览页面演示。\n\n## Goals\n- 提炼产品核心卖点\n- 生成商品标题与多种内容素材\n- 返回可供前端渲染的 preview payload\n\n## Requirements\n- 生成产品标题\n- 生成图片描述图内容\n- 生成产品轮播图内容\n- 生成产品视频脚本\n- 生成前端预览结构数据\n"
+      }
+    },
+    "next_actions": [
+      "confirm_prd",
+      "edit_prd",
+      "cancel"
+    ]
+  },
+  "error": null,
+  "meta": {}
+}
