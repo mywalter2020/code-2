@@ -1,0 +1,1130 @@
+openapi: 3.0.3
+info:
+  title: Agent Runtime API
+  version: 0.1.0
+  description: |
+    V1 OpenAPI draft for Agent Runtime.
+
+    Main flow:
+    - create session from user input
+    - generate PRD
+    - confirm or edit PRD
+    - generate Todo List
+    - confirm or edit Todo List
+    - execute Todo items
+    - return preview payload for frontend rendering
+servers:
+  - url: /api/v1
+tags:
+  - name: Sessions
+  - name: PRD
+  - name: Todo
+  - name: Executions
+  - name: Preview
+  - name: Agents
+  - name: System
+paths:
+  /healthz:
+    get:
+      tags: [System]
+      summary: Health check
+      operationId: healthz
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessHealthResponse'
+
+  /sessions:
+    post:
+      tags: [Sessions]
+      summary: Create a new session and trigger analysis
+      operationId: createSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '200':
+          description: Session created and PRD generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Sessions]
+      summary: List sessions
+      operationId: listSessions
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: type
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            default: 20
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Session list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSessionsResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{session_id}:
+    get:
+      tags: [Sessions]
+      summary: Get session detail
+      operationId: getSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Session detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetSessionResponse'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{session_id}/cancel:
+    post:
+      tags: [Sessions]
+      summary: Cancel a session
+      operationId: cancelSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelSessionRequest'
+      responses:
+        '200':
+          description: Session canceled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelSessionResponse'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '409':
+          $ref: '#/components/responses/InvalidStage'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{session_id}/prd:
+    get:
+      tags: [PRD]
+      summary: Get current PRD
+      operationId: getPrd
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Current PRD artifact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPrdResponse'
+        '404':
+          $ref: '#/components/responses/SessionOrArtifactNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{session_id}/confirm-prd:
+    post:
+      tags: [PRD]
+      summary: Confirm PRD and trigger todo generation
+      operationId: confirmPrd
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmPrdRequest'
+      responses:
+        '200':
+          description: PRD confirmed and todo generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfirmPrdResponse'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '409':
+          $ref: '#/components/responses/InvalidStage'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{session_id}/edit-prd:
+    post:
+      tags: [PRD]
+      summary: Edit PRD draft
+      operationId: editPrd
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditPrdRequest'
+      responses:
+        '200':
+          description: PRD updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditPrdResponse'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '409':
+          $ref: '#/components/responses/InvalidStage'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{session_id}/todo:
+    get:
+      tags: [Todo]
+      summary: Get current todo list
+      operationId: getTodo
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Current todo artifact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTodoResponse'
+        '404':
+          $ref: '#/components/responses/SessionOrArtifactNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{session_id}/confirm-todo:
+    post:
+      tags: [Todo]
+      summary: Confirm todo list and start execution
+      operationId: confirmTodo
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmTodoRequest'
+      responses:
+        '200':
+          description: Todo confirmed and execution started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfirmTodoResponse'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '409':
+          $ref: '#/components/responses/InvalidStage'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{session_id}/edit-todo:
+    post:
+      tags: [Todo]
+      summary: Replace todo list before execution
+      operationId: editTodo
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditTodoRequest'
+      responses:
+        '200':
+          description: Todo updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditTodoResponse'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '409':
+          $ref: '#/components/responses/InvalidStage'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{session_id}/executions:
+    get:
+      tags: [Executions]
+      summary: List execution records for a session
+      operationId: listExecutions
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Execution list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListExecutionsResponse'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{session_id}/executions/{execution_id}:
+    get:
+      tags: [Executions]
+      summary: Get execution detail
+      operationId: getExecution
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/ExecutionId'
+      responses:
+        '200':
+          description: Execution detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetExecutionResponse'
+        '404':
+          $ref: '#/components/responses/ExecutionNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{session_id}/executions/retry:
+    post:
+      tags: [Executions]
+      summary: Retry selected todo executions
+      operationId: retryExecutions
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetryExecutionsRequest'
+      responses:
+        '200':
+          description: Retry scheduled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetryExecutionsResponse'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '409':
+          $ref: '#/components/responses/InvalidStage'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{session_id}/preview:
+    get:
+      tags: [Preview]
+      summary: Get preview payload for frontend rendering
+      operationId: getPreview
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Preview payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPreviewResponse'
+        '404':
+          $ref: '#/components/responses/SessionOrArtifactNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /agents:
+    get:
+      tags: [Agents]
+      summary: List registered agents
+      operationId: listAgents
+      responses:
+        '200':
+          description: Agent list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAgentsResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /agents/{agent_code}:
+    get:
+      tags: [Agents]
+      summary: Get agent detail
+      operationId: getAgent
+      parameters:
+        - $ref: '#/components/parameters/AgentCode'
+      responses:
+        '200':
+          description: Agent detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetAgentResponse'
+        '404':
+          $ref: '#/components/responses/AgentNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    SessionId:
+      in: path
+      name: session_id
+      required: true
+      schema:
+        type: string
+      description: Session identifier, e.g. sess_001
+    ExecutionId:
+      in: path
+      name: execution_id
+      required: true
+      schema:
+        type: string
+      description: Execution identifier, e.g. exec_001
+    AgentCode:
+      in: path
+      name: agent_code
+      required: true
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InvalidStage:
+      description: Current session stage does not allow this operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    SessionNotFound:
+      description: Session not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    SessionOrArtifactNotFound:
+      description: Session or artifact not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ExecutionNotFound:
+      description: Execution not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    AgentNotFound:
+      description: Agent not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    Meta:
+      type: object
+      additionalProperties: true
+
+    ErrorObject:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: INVALID_STAGE
+        message:
+          type: string
+          example: current session stage does not allow this operation
+
+    ErrorResponse:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success:
+          type: boolean
+          example: false
+        data:
+          nullable: true
+        error:
+          $ref: '#/components/schemas/ErrorObject'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    SuccessEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+        error:
+          nullable: true
+          example: null
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    SessionStatus:
+      type: string
+      enum:
+        - input_received
+        - analysis_done
+        - waiting_prd_confirm
+        - todo_done
+        - waiting_todo_confirm
+        - executing
+        - done
+        - failed
+        - canceled
+
+    TodoStatus:
+      type: string
+      enum:
+        - pending
+        - ready
+        - running
+        - blocked
+        - done
+        - failed
+        - canceled
+
+    ExecutionStatus:
+      type: string
+      enum:
+        - queued
+        - running
+        - done
+        - failed
+        - canceled
+
+    CreateSessionInput:
+      type: object
+      required: [type, url, message]
+      properties:
+        type:
+          type: string
+          example: product_url_learning
+        url:
+          type: string
+          format: uri
+          example: https://example.com/product/123
+        message:
+          type: string
+          example: 我想学习下这个产品，你帮我处理下
+        platform:
+          type: string
+          example: xiaohongshu
+        language:
+          type: string
+          example: zh-CN
+        style:
+          type: string
+          example: clean
+
+    CreateSessionRequest:
+      type: object
+      required: [input]
+      properties:
+        input:
+          $ref: '#/components/schemas/CreateSessionInput'
+
+    PrdArtifact:
+      type: object
+      properties:
+        title:
+          type: string
+        background:
+          type: string
+        goals:
+          type: array
+          items:
+            type: string
+        requirements:
+          type: array
+          items:
+            type: string
+        open_questions:
+          type: array
+          items:
+            type: string
+        markdown:
+          type: string
+
+    TodoItem:
+      type: object
+      required: [id, title, type, status]
+      properties:
+        id:
+          type: string
+          example: todo_1
+        title:
+          type: string
+          example: 生成产品标题
+        type:
+          type: string
+          example: title_generation
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/TodoStatus'
+        depends_on:
+          type: array
+          items:
+            type: string
+        parallel_group:
+          type: string
+          nullable: true
+        acceptance_criteria:
+          type: array
+          items:
+            type: string
+        result:
+          type: object
+          additionalProperties: true
+
+    TodoArtifact:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TodoItem'
+
+    SessionArtifactsSummary:
+      type: object
+      properties:
+        has_prd:
+          type: boolean
+        has_todo:
+          type: boolean
+        has_preview:
+          type: boolean
+
+    SessionSummary:
+      type: object
+      properties:
+        session_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        type:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    SessionDetail:
+      type: object
+      properties:
+        session_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        current_stage:
+          type: string
+        input:
+          type: object
+          additionalProperties: true
+        artifacts_summary:
+          $ref: '#/components/schemas/SessionArtifactsSummary'
+        message:
+          type: string
+        next_actions:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateSessionResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                stage:
+                  type: string
+                  example: waiting_prd_confirm
+                status:
+                  $ref: '#/components/schemas/SessionStatus'
+                message:
+                  type: string
+                artifacts:
+                  type: object
+                  properties:
+                    prd:
+                      $ref: '#/components/schemas/PrdArtifact'
+                next_actions:
+                  type: array
+                  items:
+                    type: string
+
+    GetSessionResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/SessionDetail'
+
+    ListSessionsResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SessionSummary'
+                total:
+                  type: integer
+
+    GetPrdResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                prd:
+                  $ref: '#/components/schemas/PrdArtifact'
+
+    ConfirmPrdRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+
+    ConfirmPrdResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                stage:
+                  type: string
+                  example: waiting_todo_confirm
+                status:
+                  $ref: '#/components/schemas/SessionStatus'
+                message:
+                  type: string
+                artifacts:
+                  type: object
+                  properties:
+                    todo:
+                      $ref: '#/components/schemas/TodoArtifact'
+                next_actions:
+                  type: array
+                  items:
+                    type: string
+
+    EditPrdRequest:
+      type: object
+      properties:
+        patch:
+          type: object
+          additionalProperties: true
+        comment:
+          type: string
+
+    EditPrdResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                stage:
+                  type: string
+                  example: waiting_prd_confirm
+                status:
+                  $ref: '#/components/schemas/SessionStatus'
+                message:
+                  type: string
+                artifacts:
+                  type: object
+                  properties:
+                    prd:
+                      $ref: '#/components/schemas/PrdArtifact'
+                next_actions:
+                  type: array
+                  items:
+                    type: string
+
+    GetTodoResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                todo:
+                  $ref: '#/components/schemas/TodoArtifact'
+
+    ConfirmTodoRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+
+    ConfirmTodoResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                stage:
+                  type: string
+                  example: executing
+                status:
+                  $ref: '#/components/schemas/SessionStatus'
+                message:
+                  type: string
+                next_actions:
+                  type: array
+                  items:
+                    type: string
+
+    EditTodoRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TodoItem'
+        comment:
+          type: string
+
+    EditTodoResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                stage:
+                  type: string
+                  example: waiting_todo_confirm
+                status:
+                  $ref: '#/components/schemas/SessionStatus'
+                message:
+                  type: string
+                artifacts:
+                  type: object
+                  properties:
+                    todo:
+                      $ref: '#/components/schemas/TodoArtifact'
+                next_actions:
+                  type: array
+                  items:
+                    type: string
+
+    ExecutionSummary:
+      type: object
+      properties:
+        execution_id:
+          type: string
+        todo_id:
+          type: string
+        title:
+          type: string
+        executor:
+          type: string
+        status:
+          $ref: '#/components/schemas/ExecutionStatus'
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    LogEntry:
+      type: object
+      properties:
+        time:
+          type: string
+          format: date-time
+        level:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+
+    ExecutionDetail:
+      type: object
+      properties:
+        execution_id:
+          type: string
+        todo_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/ExecutionStatus'
+        input:
+          type: object
+          additionalProperties: true
+        output:
+          type: object
+          additionalProperties: true
+        reasoning_summary:
+          type: string
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogEntry'
+
+    ListExecutionsResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                status:
+                  $ref: '#/components/schemas/SessionStatus'
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ExecutionSummary'
+
+    GetExecutionResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ExecutionDetail'
+
+    RetryExecutionsRequest:
+      type: object
+      required: [todo_ids]
+      properties:
+        todo_ids:
+          type: array
+          items:
+            type: string
+
+    RetryExecutionsResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                status:
+                  $ref: '#/components/schemas/SessionStatus'
+                message:
+                  type: string
+
+    PreviewPayload:
+      type: object
+      properties:
+        hero_title:
+          type: string
+        hero_subtitle:
+          type: string
+        feature_blocks:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        carousel:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        video_section:
+          type: object
+          additionalProperties: true
+
+    GetPreviewResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                status:
+                  $ref: '#/components/schemas/SessionStatus'
+                preview:
+                  $ref: '#/components/schemas/PreviewPayload'
+
+    CancelSessionRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+
+    CancelSessionResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                status:
+                  $ref: '#/components/schemas/SessionStatus'
+                message:
+                  type: string
+
+    AgentProfileSummary:
+      type: object
+      properties:
+        identity:
+          type: string
+        soul:
+          type: string
+        soul_summary:
+          type: string
+        memory_summary:
+          type: string
+        rules_summary:
+          type: array
+          items:
+            type: string
+
+    AgentSummary:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        profile:
+          $ref: '#/components/schemas/AgentProfileSummary'
+
+    ListAgentsResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AgentSummary'
+
+    GetAgentResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AgentSummary'
+
+    SuccessHealthResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: ok
