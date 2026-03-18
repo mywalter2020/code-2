@@ -352,6 +352,85 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /sessions/{session_id}/logs:
+    get:
+      tags: [Executions]
+      summary: List logs for a session
+      operationId: listSessionLogs
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - in: query
+          name: execution_id
+          schema:
+            type: string
+        - in: query
+          name: todo_id
+          schema:
+            type: string
+        - in: query
+          name: level
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            default: 100
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Session log list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListLogsResponse'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{session_id}/executions/{execution_id}/logs:
+    get:
+      tags: [Executions]
+      summary: List logs for an execution
+      operationId: listExecutionLogs
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/ExecutionId'
+        - in: query
+          name: level
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            default: 100
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Execution log list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListLogsResponse'
+        '404':
+          $ref: '#/components/responses/ExecutionNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /sessions/{session_id}/preview:
     get:
       tags: [Preview]
@@ -909,14 +988,25 @@ components:
       properties:
         execution_id:
           type: string
+        parent_execution_id:
+          type: string
+          nullable: true
         todo_id:
           type: string
         title:
           type: string
         executor:
           type: string
+        skill_code:
+          type: string
+          nullable: true
         status:
           $ref: '#/components/schemas/ExecutionStatus'
+        attempt:
+          type: integer
+        retry_of_execution_id:
+          type: string
+          nullable: true
         started_at:
           type: string
           format: date-time
@@ -929,10 +1019,18 @@ components:
     LogEntry:
       type: object
       properties:
+        log_id:
+          type: integer
+          format: int64
         time:
           type: string
           format: date-time
         level:
+          type: string
+          enum: [debug, info, warn, error]
+        source_type:
+          type: string
+        source_code:
           type: string
         message:
           type: string
@@ -940,15 +1038,71 @@ components:
           type: object
           additionalProperties: true
 
+    RetryTarget:
+      type: object
+      required: [todo_id]
+      properties:
+        todo_id:
+          type: string
+        latest_failed_execution_id:
+          type: string
+          nullable: true
+        force:
+          type: boolean
+          default: false
+
+    RetryResultItem:
+      type: object
+      properties:
+        todo_id:
+          type: string
+        previous_execution_id:
+          type: string
+          nullable: true
+        new_execution_id:
+          type: string
+          nullable: true
+        previous_attempt:
+          type: integer
+          nullable: true
+        new_attempt:
+          type: integer
+          nullable: true
+        accepted:
+          type: boolean
+        reason:
+          type: string
+          nullable: true
+
     ExecutionDetail:
       type: object
       properties:
         execution_id:
           type: string
+        parent_execution_id:
+          type: string
+          nullable: true
+        retry_of_execution_id:
+          type: string
+          nullable: true
+        session_id:
+          type: string
         todo_id:
           type: string
+        todo_version:
+          type: integer
+        executor:
+          type: string
+        skill_code:
+          type: string
+          nullable: true
         status:
           $ref: '#/components/schemas/ExecutionStatus'
+        attempt:
+          type: integer
+        queue_reason:
+          type: string
+          nullable: true
         input:
           type: object
           additionalProperties: true
@@ -957,6 +1111,26 @@ components:
           additionalProperties: true
         reasoning_summary:
           type: string
+        error_code:
+          type: string
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        metrics:
+          type: object
+          additionalProperties: true
         logs:
           type: array
           items:
@@ -989,12 +1163,15 @@ components:
 
     RetryExecutionsRequest:
       type: object
-      required: [todo_ids]
+      required: [items]
       properties:
-        todo_ids:
+        items:
           type: array
+          minItems: 1
           items:
-            type: string
+            $ref: '#/components/schemas/RetryTarget'
+        reason:
+          type: string
 
     RetryExecutionsResponse:
       allOf:
@@ -1010,6 +1187,30 @@ components:
                   $ref: '#/components/schemas/SessionStatus'
                 message:
                   type: string
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/RetryResultItem'
+
+    ListLogsResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                execution_id:
+                  type: string
+                  nullable: true
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/LogEntry'
+                total:
+                  type: integer
 
     PreviewPayload:
       type: object

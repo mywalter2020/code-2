@@ -332,27 +332,41 @@ Todo 表示计划，Execution 表示运行实例。一个 Todo 理论上可以�
 | session_id | text | 所属 session |
 | todo_id | text | 对应 todo |
 | todo_version | integer | 对应 todo 版本 |
+| parent_execution_id | text | 父 execution，可为空，用于细分执行链 |
+| retry_of_execution_id | text | 本次是重试哪个 execution，可为空 |
 | executor_agent | text | 执行 agent，如 `executor` |
 | skill_code | text | 本次主要调用 skill，可为空 |
 | status | text | 执行状态 |
 | attempt | integer | 第几次尝试 |
+| queue_reason | text | 为什么被放入队列，如 `todo_confirmed` / `retry_requested` |
 | input_payload | jsonb | 执行输入 |
 | output_payload | jsonb | 执行输出 |
+| metrics | jsonb | 执行指标，如 token、耗时、step 数 |
 | reasoning_summary | text | 执行摘要 |
 | error_code | text | 错误码 |
 | error_message | text | 错误信息 |
+| created_by | text | 谁触发了本次执行，如 `system` / `user` |
 | started_at | timestamptz | 开始时间 |
 | finished_at | timestamptz | 结束时间 |
 | created_at | timestamptz | 创建时间 |
 | updated_at | timestamptz | 更新时间 |
+
+### 说明
+
+- `retry_of_execution_id` 用来保留“失败 execution -> 新 execution”的重试链。
+- `attempt` 应按 `(session_id, todo_id, todo_version)` 单调递增，避免覆盖历史。
+- `metrics` 先用 JSONB，V1 不急着拆 token / latency 专表。
+- `queue_reason` 可以帮助区分首次执行、自动重试、人工重试。
 
 ### 索引建议
 
 - `pk_execution_records(id)`
 - `idx_execution_records_session(session_id)`
 - `idx_execution_records_todo(session_id, todo_id, todo_version)`
+- `idx_execution_records_retry_of(retry_of_execution_id)`
 - `idx_execution_records_status(session_id, status)`
 - `idx_execution_records_started_at(started_at desc)`
+- `unique(session_id, todo_id, todo_version, attempt)`
 
 ### 示例 SQL
 
@@ -362,19 +376,25 @@ create table execution_records (
   session_id text not null references sessions(id) on delete cascade,
   todo_id text not null,
   todo_version integer not null,
+  parent_execution_id text references execution_records(id) on delete set null,
+  retry_of_execution_id text references execution_records(id) on delete set null,
   executor_agent text not null,
   skill_code text,
   status text not null,
   attempt integer not null default 1,
+  queue_reason text,
   input_payload jsonb not null default '{}'::jsonb,
   output_payload jsonb not null default '{}'::jsonb,
+  metrics jsonb not null default '{}'::jsonb,
   reasoning_summary text,
   error_code text,
   error_message text,
+  created_by text,
   started_at timestamptz,
   finished_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  unique (session_id, todo_id, todo_version, attempt),
   foreign key (todo_id, session_id, todo_version)
     references todo_items(id, session_id, version)
     on delete cascade
@@ -388,6 +408,20 @@ create table execution_records (
 ### 作用
 记录全流程日志，可关联 session，也可关联 execution。
 
+### 设计补充
+V1 的日志不只是“打印文本”，而应该满足两类用途：
+
+1. **调试与排障**：能看到某个 execution 为什么失败、失败前最后做了什么。
+2. **产品态展示**：前端或 API 可以按 session / execution 拉取日志流。
+
+因此日志表需要支持：
+
+- session 级检索
+- execution 级检索
+- level 过滤
+- 顺序分页
+- 结构化扩展字段
+
 ### 建议字段
 
 | 字段 | 类型 | 说明 |
@@ -397,8 +431,9 @@ create table execution_records (
 | execution_id | text | 所属 execution，可为空 |
 | todo_id | text | 所属 todo，可为空 |
 | level | text | 日志级别 |
-| source_type | text | `system` / `agent` / `skill` |
+| source_type | text | `system` / `agent` / `skill` / `scheduler` |
 | source_code | text | 如 `analyst` / `executor` / `generate_title` |
+| event_type | text | 如 `execution.queued` / `execution.started` / `tool.called` / `execution.failed` |
 | message | text | 日志消息 |
 | data | jsonb | 扩展数据 |
 | created_at | timestamptz | 创建时间 |
@@ -407,7 +442,9 @@ create table execution_records (
 
 - `idx_logs_session(session_id, created_at)`
 - `idx_logs_execution(execution_id, created_at)`
+- `idx_logs_todo(session_id, todo_id, created_at)`
 - `idx_logs_level(level)`
+- `idx_logs_event_type(event_type)`
 
 ### 示例 SQL
 
@@ -420,10 +457,22 @@ create table logs (
   level text not null,
   source_type text not null,
   source_code text not null,
+  event_type text not null,
   message text not null,
   data jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
+```
+
+### 推荐 data 示例
+
+```json
+{
+  "tool": "generate_product_title",
+  "attempt": 2,
+  "error_code": "MODEL_TIMEOUT",
+  "latency_ms": 12450
+}
 ```
 
 ---
@@ -588,7 +637,22 @@ create table agent_profiles (
 - `execution_records.error_code/error_message`
 - `logs` 中 `level = error`
 
-### 8.5 获取 Preview Payload
+### 8.5 获取 execution retry 链
+查询：
+- `execution_records where session_id = ? and todo_id = ? order by attempt asc`
+- 或按 `retry_of_execution_id` 递归追踪
+
+用途：
+- 看某个 Todo 重试了多少次
+- 看每次重试的错误是否变化
+- 判断是临时错误还是系统性错误
+
+### 8.6 获取日志流
+查询：
+- `logs where session_id = ? order by created_at asc limit ? offset ?`
+- `logs where execution_id = ? order by created_at asc limit ? offset ?`
+
+### 8.7 获取 Preview Payload
 查询：
 - `session_artifacts where artifact_type = 'preview' and is_current = true`
 
@@ -637,8 +701,10 @@ PRD / Todo / Preview 先共用 `session_artifacts`，不拆专表。
 - `todo_items`
 - `execution_records`
 
-### 003_init_logs_agents.sql
+### 003_init_logs.sql
 - `logs`
+
+### 004_init_agents.sql
 - `agents`
 - `agent_profiles`
 
