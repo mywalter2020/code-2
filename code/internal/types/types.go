@@ -70,10 +70,22 @@ type AbilityConfig struct {
 	Enabled     bool     `yaml:"enabled"`
 }
 
+type WorkflowCondition struct {
+	Source    string `yaml:"source" json:"source"`
+	Path      string `yaml:"path" json:"path"`
+	Equals    any    `yaml:"equals,omitempty" json:"equals,omitempty"`
+	NotEquals any    `yaml:"not_equals,omitempty" json:"not_equals,omitempty"`
+	Exists    *bool  `yaml:"exists,omitempty" json:"exists,omitempty"`
+}
+
 type WorkflowStep struct {
-	Step                int    `yaml:"step"`
-	Ability             string `yaml:"ability"`
-	RequireHumanConfirm bool   `yaml:"require_human_confirm"`
+	ID                  string              `yaml:"id,omitempty" json:"id,omitempty"`
+	Step                int                 `yaml:"step" json:"step"`
+	Ability             string              `yaml:"ability,omitempty" json:"ability,omitempty"`
+	InvokeBinding       string              `yaml:"invoke_binding,omitempty" json:"invoke_binding,omitempty"`
+	DependsOn           []string            `yaml:"depends_on,omitempty" json:"depends_on,omitempty"`
+	When                []WorkflowCondition `yaml:"when,omitempty" json:"when,omitempty"`
+	RequireHumanConfirm bool                `yaml:"require_human_confirm" json:"require_human_confirm"`
 }
 
 type Binding struct {

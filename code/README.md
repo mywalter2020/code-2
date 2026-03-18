@@ -6,7 +6,8 @@
 - 多能力 Agent 注册中心
 - 平台 adapter 接口层（当前含 Alibaba / Taobao / Douyin stub 与协议骨架）
 - 配置中心驱动绑定关系
-- workflow 顺序执行
+- workflow 顺序执行 / 依赖编排 / 条件分支 / 子编排调用
+- 同一依赖层的能力可并行执行
 - 人工确认节点标记
 - HTTP API 服务入口
 - 任务流（task_id / 状态 / 查询 / 确认 / cancel / retry）
@@ -265,6 +266,6 @@ go test ./...
 当前实现还是原型版：
 - 小 Agent 仍以 stub/模拟能力为主
 - 尚未接入真实模型或真实平台 API
-- 尚未支持细粒度 RBAC、持久化 operator directory、消息队列、并行工作流
+- 已支持基础并行工作流 / 条件分支 / 子编排调用，但还未支持更完整的 DAG 可视化、消息队列、细粒度 RBAC、持久化 operator directory
 
 但整体骨架已经适合作为后续继续开发的基础项目结构。

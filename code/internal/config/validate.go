@@ -63,6 +63,7 @@ func Validate(cfg types.Config) error {
 			return fmt.Errorf("config: binding for %s has no workflow or abilities", masterCode)
 		}
 		seenSteps := map[int]struct{}{}
+		seenIDs := map[string]struct{}{}
 		for _, step := range b.Workflow {
 			if step.Step <= 0 {
 				return fmt.Errorf("config: binding %s has invalid workflow step %d", masterCode, step.Step)
@@ -71,11 +72,44 @@ func Validate(cfg types.Config) error {
 				return fmt.Errorf("config: binding %s has duplicate workflow step %d", masterCode, step.Step)
 			}
 			seenSteps[step.Step] = struct{}{}
-			if strings.TrimSpace(step.Ability) == "" {
-				return fmt.Errorf("config: binding %s step %d missing ability", masterCode, step.Step)
+			stepID := strings.TrimSpace(step.ID)
+			if stepID != "" {
+				if _, exists := seenIDs[stepID]; exists {
+					return fmt.Errorf("config: binding %s has duplicate workflow id %s", masterCode, stepID)
+				}
+				seenIDs[stepID] = struct{}{}
 			}
-			if _, ok := abilityByCode[step.Ability]; !ok {
-				return fmt.Errorf("config: binding %s step %d references unknown ability %s", masterCode, step.Step, step.Ability)
+			if strings.TrimSpace(step.Ability) == "" && strings.TrimSpace(step.InvokeBinding) == "" {
+				return fmt.Errorf("config: binding %s step %d missing ability or invoke_binding", masterCode, step.Step)
+			}
+			if strings.TrimSpace(step.Ability) != "" && strings.TrimSpace(step.InvokeBinding) != "" {
+				return fmt.Errorf("config: binding %s step %d cannot set both ability and invoke_binding", masterCode, step.Step)
+			}
+			if step.Ability != "" {
+				if _, ok := abilityByCode[step.Ability]; !ok {
+					return fmt.Errorf("config: binding %s step %d references unknown ability %s", masterCode, step.Step, step.Ability)
+				}
+			}
+			if step.InvokeBinding != "" {
+				if step.InvokeBinding == masterCode {
+					return fmt.Errorf("config: binding %s step %d cannot invoke itself", masterCode, step.Step)
+				}
+				if _, ok := masterByCode[step.InvokeBinding]; !ok {
+					return fmt.Errorf("config: binding %s step %d references unknown binding %s", masterCode, step.Step, step.InvokeBinding)
+				}
+			}
+			for _, dep := range step.DependsOn {
+				if strings.TrimSpace(dep) == "" {
+					return fmt.Errorf("config: binding %s step %d has empty depends_on item", masterCode, step.Step)
+				}
+			}
+		}
+		for _, step := range b.Workflow {
+			for _, dep := range step.DependsOn {
+				if _, ok := seenIDs[dep]; ok {
+					continue
+				}
+				return fmt.Errorf("config: binding %s step %d depends_on unknown id %s", masterCode, step.Step, dep)
 			}
 		}
 		for _, ability := range b.Abilities {
