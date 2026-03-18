@@ -12,5 +12,7 @@
 ## Context
 
 - 当前在搭建和打磨 OpenClaw 工作区。
-- 近期关注点更偏向：agent、skills、长期记忆、workspace 设计，以及可持续改进。
+- 近期在做 agent 相关话题研究，并关注/参与 AI2026 相关内容。
+- 研究重点偏向：multi-agent + skills。
+- 同时关注长期记忆、workspace 设计，以及可持续改进。
 - 沟通风格偏简洁直接，适合先做事再汇报。
