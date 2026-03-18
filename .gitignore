@@ -11,6 +11,11 @@ bin/
 *.tmp
 *.out
 
+# local databases
+*.db
+*.db-shm
+*.db-wal
+
 # editor
 .vscode/
 .idea/
