@@ -7,12 +7,14 @@ import (
 
 	"juyu-ai-platform/internal/orchestrator"
 	"juyu-ai-platform/internal/registry"
+	"juyu-ai-platform/internal/store"
 	"juyu-ai-platform/internal/types"
 )
 
 type Server struct {
 	orc             *orchestrator.Orchestrator
 	rg              *registry.Registry
+	runtimeStore    store.RuntimeStore
 	abilityMetadata []types.AbilityMetadata
 	masterMetadata  []types.MasterAgentMetadata
 	bindingViews    []types.BindingView
@@ -31,6 +33,7 @@ func New(orc *orchestrator.Orchestrator, rg *registry.Registry, abilityMetadata 
 	return &Server{
 		orc:             orc,
 		rg:              rg,
+		runtimeStore:    store.NewRuntimeMemoryStore(),
 		abilityMetadata: abilityMetadata,
 		masterMetadata:  masterMetadata,
 		bindingViews:    bindingViews,
@@ -53,6 +56,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/tasks/summary", s.handleTaskSummary)
 	mux.HandleFunc("/tasks", s.handleTaskList)
 	mux.HandleFunc("/tasks/", s.handleTasks)
+	mux.HandleFunc("/api/v1/sessions", s.handleRuntimeSessions)
+	mux.HandleFunc("/api/v1/sessions/", s.handleRuntimeSessionRoutes)
 	s.registerUI(mux)
 }
 
