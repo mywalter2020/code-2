@@ -22,7 +22,8 @@
 
 ## 📋 活跃任务（完成后删）
 
-- 继续逐步完善 workspace 文件，使长期记忆、心跳与用户画像真正可用。
+- 补完 `IDENTITY.md`，确定我的名字 / creature / vibe / emoji。
+- 继续把近期有效经验沉淀进 `MEMORY.md`、`AGENTS.md` 与 `.learnings/`。
 
 ## 🔄 纠正记录（≤10条）
 
