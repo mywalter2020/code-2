@@ -68,6 +68,34 @@ func (s *RuntimeMemoryStore) CreateSession(input types.CreateSessionInput) (*typ
 	return cloneRuntimeSession(sess), nil
 }
 
+func (s *RuntimeMemoryStore) ListSessions(status, inputType string, limit, offset int) ([]types.RuntimeSession, int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]types.RuntimeSession, 0, len(s.sessions))
+	for _, sess := range s.sessions {
+		if status != "" && string(sess.Status) != status {
+			continue
+		}
+		if inputType != "" && sess.Input.Type != inputType {
+			continue
+		}
+		items = append(items, *cloneRuntimeSession(sess))
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].UpdatedAt.After(items[j].UpdatedAt) })
+	total := len(items)
+	if offset > total {
+		return []types.RuntimeSession{}, total, nil
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return append([]types.RuntimeSession{}, items[offset:end]...), total, nil
+}
+
 func (s *RuntimeMemoryStore) GetSession(sessionID string) (*types.RuntimeSession, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

@@ -4,6 +4,7 @@ import "juyu-ai-platform/internal/types"
 
 type RuntimeStore interface {
 	CreateSession(input types.CreateSessionInput) (*types.RuntimeSession, error)
+	ListSessions(status, inputType string, limit, offset int) ([]types.RuntimeSession, int, error)
 	GetSession(sessionID string) (*types.RuntimeSession, error)
 	EditPrd(sessionID string, patch map[string]any, comment string) (*types.RuntimeSession, error)
 	ConfirmPrd(sessionID string, comment string) (*types.RuntimeSession, error)

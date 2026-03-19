@@ -145,6 +145,52 @@ func (s *RuntimePostgresStore) CreateSession(input types.CreateSessionInput) (*t
 	return sess, s.persistFromMemory(mem, sess.SessionID)
 }
 
+func (s *RuntimePostgresStore) ListSessions(status, inputType string, limit, offset int) ([]types.RuntimeSession, int, error) {
+	query := `SELECT id FROM sessions WHERE 1=1`
+	args := make([]any, 0)
+	idx := 1
+	if status != "" {
+		query += fmt.Sprintf(` AND status = $%d`, idx)
+		args = append(args, status)
+		idx++
+	}
+	if inputType != "" {
+		query += fmt.Sprintf(` AND input_type = $%d`, idx)
+		args = append(args, inputType)
+		idx++
+	}
+	query += ` ORDER BY updated_at DESC`
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	items := make([]types.RuntimeSession, 0)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, 0, err
+		}
+		sess, err := s.rebuildSession(id)
+		if err != nil {
+			return nil, 0, err
+		}
+		items = append(items, *sess)
+	}
+	total := len(items)
+	if offset > total {
+		return []types.RuntimeSession{}, total, nil
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return append([]types.RuntimeSession{}, items[offset:end]...), total, nil
+}
+
 func (s *RuntimePostgresStore) GetSession(sessionID string) (*types.RuntimeSession, error) {
 	return s.rebuildSession(sessionID)
 }

@@ -10,6 +10,26 @@ import (
 )
 
 func (s *Server) handleRuntimeSessions(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+		items, total, err := s.runtimeStore.ListSessions(r.URL.Query().Get("status"), r.URL.Query().Get("type"), limit, offset)
+		if err != nil {
+			writeAPI(w, http.StatusInternalServerError, false, statusCodeToErr(http.StatusInternalServerError), "", err.Error(), nil)
+			return
+		}
+		summaries := make([]map[string]any, 0, len(items))
+		for _, item := range items {
+			summaries = append(summaries, map[string]any{
+				"session_id": item.SessionID,
+				"status":     item.Status,
+				"type":       item.Input.Type,
+				"created_at": item.CreatedAt,
+			})
+		}
+		writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"items": summaries, "total": total})
+		return
+	}
 	if r.Method != http.MethodPost {
 		writeAPI(w, http.StatusMethodNotAllowed, false, statusCodeToErr(http.StatusMethodNotAllowed), "", "method not allowed", nil)
 		return

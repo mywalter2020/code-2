@@ -60,6 +60,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/tasks/", s.handleTasks)
 	mux.HandleFunc("/api/v1/sessions", s.handleRuntimeSessions)
 	mux.HandleFunc("/api/v1/sessions/", s.handleRuntimeSessionRoutes)
+	mux.HandleFunc("/api/v1/agents", s.handleRuntimeAgents)
+	mux.HandleFunc("/api/v1/agents/", s.handleRuntimeAgentRoutes)
 	s.registerUI(mux)
 }
 
