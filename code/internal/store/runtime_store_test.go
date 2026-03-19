@@ -21,6 +21,14 @@ func TestRuntimeMemoryStoreMainFlow(t *testing.T) {
 		t.Fatalf("unexpected initial status: %s", sess.Status)
 	}
 
+	sess, err = s.EditPrd(sess.SessionID, map[string]any{"title": "updated title"}, "edit")
+	if err != nil {
+		t.Fatalf("edit prd: %v", err)
+	}
+	if sess.PRD == nil || sess.PRD.Version != 2 {
+		t.Fatalf("expected prd version 2 after edit, got %+v", sess.PRD)
+	}
+
 	sess, err = s.ConfirmPrd(sess.SessionID, "ok")
 	if err != nil {
 		t.Fatalf("confirm prd: %v", err)
@@ -30,6 +38,19 @@ func TestRuntimeMemoryStoreMainFlow(t *testing.T) {
 	}
 	if sess.Todo == nil || len(sess.Todo.Items) == 0 {
 		t.Fatalf("expected todo items")
+	}
+	if sess.Todo.Version != 1 {
+		t.Fatalf("expected todo version 1, got %+v", sess.Todo)
+	}
+
+	editedItems := append([]types.RuntimeTodoItem{}, sess.Todo.Items...)
+	editedItems = editedItems[:len(editedItems)-1]
+	sess, err = s.EditTodo(sess.SessionID, editedItems, "edit todo")
+	if err != nil {
+		t.Fatalf("edit todo: %v", err)
+	}
+	if sess.Todo == nil || sess.Todo.Version != 2 {
+		t.Fatalf("expected todo version 2 after edit, got %+v", sess.Todo)
 	}
 
 	sess, err = s.ConfirmTodo(sess.SessionID, "go")

@@ -35,6 +35,7 @@ func (s *RuntimeMemoryStore) CreateSession(input types.CreateSessionInput) (*typ
 	now := time.Now()
 	id := fmt.Sprintf("sess_%03d", s.sessionCounter)
 	prd := &types.RuntimePRD{
+		Version:    1,
 		Title:      "产品学习与预览内容生成",
 		Background: "用户希望基于 URL 理解产品并生成一版预览内容",
 		Goals: []string{
@@ -87,6 +88,7 @@ func (s *RuntimeMemoryStore) EditPrd(sessionID string, patch map[string]any, com
 	if sess.PRD == nil {
 		sess.PRD = &types.RuntimePRD{}
 	}
+	sess.PRD.Version++
 	if v, ok := patch["title"].(string); ok && v != "" {
 		sess.PRD.Title = v
 	}
@@ -110,7 +112,7 @@ func (s *RuntimeMemoryStore) ConfirmPrd(sessionID string, comment string) (*type
 	if err != nil {
 		return nil, err
 	}
-	todo := &types.RuntimeTodoArtifact{Items: []types.RuntimeTodoItem{
+	todo := &types.RuntimeTodoArtifact{Version: 1, Items: []types.RuntimeTodoItem{
 		{ID: "todo_1", Title: "生成产品标题", Type: "title_generation", Status: types.TodoStatusPending, ParallelGroup: "content_assets"},
 		{ID: "todo_2", Title: "生成图片描述图内容", Type: "feature_image_copy", Status: types.TodoStatusPending, ParallelGroup: "content_assets"},
 		{ID: "todo_3", Title: "生成产品轮播图内容", Type: "carousel_generation", Status: types.TodoStatusPending, ParallelGroup: "content_assets"},
@@ -144,7 +146,11 @@ func (s *RuntimeMemoryStore) EditTodo(sessionID string, items []types.RuntimeTod
 	if err != nil {
 		return nil, err
 	}
-	sess.Todo = &types.RuntimeTodoArtifact{Items: append([]types.RuntimeTodoItem{}, items...)}
+	version := 1
+	if sess.Todo != nil && sess.Todo.Version > 0 {
+		version = sess.Todo.Version + 1
+	}
+	sess.Todo = &types.RuntimeTodoArtifact{Version: version, Items: append([]types.RuntimeTodoItem{}, items...)}
 	sess.Message = "Todo 已更新，等待确认"
 	sess.NextActions = []string{"confirm_todo", "edit_todo", "cancel"}
 	sess.UpdatedAt = time.Now()
@@ -190,7 +196,7 @@ func (s *RuntimeMemoryStore) ConfirmTodo(sessionID string, comment string) (*typ
 			ExecutionID:      execID,
 			SessionID:        sessionID,
 			TodoID:           item.ID,
-			TodoVersion:      1,
+			TodoVersion:      sess.Todo.Version,
 			Title:            item.Title,
 			Executor:         "executor",
 			SkillCode:        item.Type,
@@ -427,7 +433,7 @@ func cloneRuntimeTodo(in *types.RuntimeTodoArtifact) *types.RuntimeTodoArtifact 
 		return nil
 	}
 	items := append([]types.RuntimeTodoItem{}, in.Items...)
-	return &types.RuntimeTodoArtifact{Items: items}
+	return &types.RuntimeTodoArtifact{Version: in.Version, Items: items}
 }
 
 func summaryForExecution(status types.ExecutionStatus) string {

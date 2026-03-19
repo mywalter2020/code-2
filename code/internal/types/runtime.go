@@ -52,6 +52,7 @@ type CreateSessionRequest struct {
 }
 
 type RuntimePRD struct {
+	Version       int      `json:"version,omitempty"`
 	Title         string   `json:"title,omitempty"`
 	Background    string   `json:"background,omitempty"`
 	Goals         []string `json:"goals,omitempty"`
@@ -73,7 +74,8 @@ type RuntimeTodoItem struct {
 }
 
 type RuntimeTodoArtifact struct {
-	Items []RuntimeTodoItem `json:"items"`
+	Version int               `json:"version,omitempty"`
+	Items   []RuntimeTodoItem `json:"items"`
 }
 
 type RuntimeSession struct {

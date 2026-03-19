@@ -419,14 +419,14 @@ func (s *RuntimePostgresStore) replaceArtifactsTx(tx *sql.Tx, sess *types.Runtim
 	}
 	if sess.PRD != nil {
 		content, _ := json.Marshal(sess.PRD)
-		_, err := tx.Exec(`INSERT INTO session_artifacts(session_id, artifact_type, version, content_format, content, markdown_content, summary, created_by_agent, is_current) VALUES($1,'prd',1,'mixed',$2::jsonb,$3,$4,'analyst',true)`, sess.SessionID, string(content), sess.PRD.Markdown, sess.PRD.Title)
+		_, err := tx.Exec(`INSERT INTO session_artifacts(session_id, artifact_type, version, content_format, content, markdown_content, summary, created_by_agent, is_current) VALUES($1,'prd',$2,'mixed',$3::jsonb,$4,$5,'analyst',true)`, sess.SessionID, versionForArtifact(sess.PRD), string(content), sess.PRD.Markdown, sess.PRD.Title)
 		if err != nil {
 			return err
 		}
 	}
 	if sess.Todo != nil {
 		content, _ := json.Marshal(sess.Todo)
-		_, err := tx.Exec(`INSERT INTO session_artifacts(session_id, artifact_type, version, content_format, content, summary, created_by_agent, is_current) VALUES($1,'todo',1,'json',$2::jsonb,$3,'planner',true)`, sess.SessionID, string(content), "todo list")
+		_, err := tx.Exec(`INSERT INTO session_artifacts(session_id, artifact_type, version, content_format, content, summary, created_by_agent, is_current) VALUES($1,'todo',$2,'json',$3::jsonb,$4,'planner',true)`, sess.SessionID, versionForTodo(sess.Todo), string(content), "todo list")
 		if err != nil {
 			return err
 		}
@@ -452,7 +452,7 @@ func (s *RuntimePostgresStore) replaceTodoItemsTx(tx *sql.Tx, sessionID string, 
 		dependsOn, _ := json.Marshal(item.DependsOn)
 		criteria, _ := json.Marshal(item.AcceptanceCriteria)
 		result, _ := json.Marshal(item.Result)
-		_, err := tx.Exec(`INSERT INTO todo_items(id, session_id, version, title, task_type, description, status, parallel_group, depends_on, acceptance_criteria, result_snapshot, sort_order, updated_at) VALUES($1,$2,1,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,$11,now())`, item.ID, sessionID, item.Title, item.Type, item.Description, string(item.Status), nullIfEmptyString(item.ParallelGroup), string(dependsOn), string(criteria), string(result), i)
+		_, err := tx.Exec(`INSERT INTO todo_items(id, session_id, version, title, task_type, description, status, parallel_group, depends_on, acceptance_criteria, result_snapshot, sort_order, updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12,now())`, item.ID, sessionID, versionForTodo(todo), item.Title, item.Type, item.Description, string(item.Status), nullIfEmptyString(item.ParallelGroup), string(dependsOn), string(criteria), string(result), i)
 		if err != nil {
 			return err
 		}
@@ -523,18 +523,21 @@ func (s *RuntimePostgresStore) loadArtifactMap(sessionID, artifactType string) (
 }
 
 func (s *RuntimePostgresStore) loadTodo(sessionID string) (*types.RuntimeTodoArtifact, error) {
-	rows, err := s.db.Query(`SELECT id, title, task_type, description, status, parallel_group, depends_on, acceptance_criteria, result_snapshot FROM todo_items WHERE session_id = $1 AND version = 1 ORDER BY sort_order ASC`, sessionID)
+	rows, err := s.db.Query(`SELECT id, version, title, task_type, description, status, parallel_group, depends_on, acceptance_criteria, result_snapshot FROM todo_items WHERE session_id = $1 AND version = (SELECT COALESCE(MAX(version), 1) FROM todo_items WHERE session_id = $1) ORDER BY sort_order ASC`, sessionID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	items := make([]types.RuntimeTodoItem, 0)
+	version := 0
 	for rows.Next() {
 		var item types.RuntimeTodoItem
+		var rowVersion int
 		var dependsOn, criteria, result []byte
-		if err := rows.Scan(&item.ID, &item.Title, &item.Type, &item.Description, &item.Status, &item.ParallelGroup, &dependsOn, &criteria, &result); err != nil {
+		if err := rows.Scan(&item.ID, &rowVersion, &item.Title, &item.Type, &item.Description, &item.Status, &item.ParallelGroup, &dependsOn, &criteria, &result); err != nil {
 			return nil, err
 		}
+		version = rowVersion
 		_ = json.Unmarshal(dependsOn, &item.DependsOn)
 		_ = json.Unmarshal(criteria, &item.AcceptanceCriteria)
 		_ = json.Unmarshal(result, &item.Result)
@@ -543,7 +546,7 @@ func (s *RuntimePostgresStore) loadTodo(sessionID string) (*types.RuntimeTodoArt
 	if len(items) == 0 {
 		return nil, nil
 	}
-	return &types.RuntimeTodoArtifact{Items: items}, nil
+	return &types.RuntimeTodoArtifact{Version: version, Items: items}, nil
 }
 
 func (s *RuntimePostgresStore) loadExecutions(sessionID string) ([]types.RuntimeExecution, error) {
@@ -636,14 +639,20 @@ func versionForArtifact(prd *types.RuntimePRD) int {
 	if prd == nil {
 		return 0
 	}
-	return 1
+	if prd.Version <= 0 {
+		return 1
+	}
+	return prd.Version
 }
 
 func versionForTodo(todo *types.RuntimeTodoArtifact) int {
 	if todo == nil {
 		return 0
 	}
-	return 1
+	if todo.Version <= 0 {
+		return 1
+	}
+	return todo.Version
 }
 
 func versionForPreview(preview map[string]any) int {
