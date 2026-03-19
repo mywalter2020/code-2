@@ -552,49 +552,44 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
 
   schemas:
-    Meta:
-      type: object
-      additionalProperties: true
-
-    ErrorObject:
-      type: object
-      required: [code, message]
-      properties:
-        code:
-          type: string
-          example: INVALID_STAGE
-        message:
-          type: string
-          example: current session stage does not allow this operation
-
     ErrorResponse:
       type: object
-      required: [success, data, error, meta]
+      required: [success]
       properties:
         success:
           type: boolean
           example: false
+        code:
+          type: string
+          example: NOT_FOUND
+        message:
+          type: string
+          example: ""
+        error:
+          type: string
+          example: session not found
         data:
           nullable: true
-        error:
-          $ref: '#/components/schemas/ErrorObject'
-        meta:
-          $ref: '#/components/schemas/Meta'
 
     SuccessEnvelope:
       type: object
-      required: [success, data, error, meta]
+      required: [success, data]
       properties:
         success:
           type: boolean
           example: true
+        code:
+          type: string
+          example: ""
+        message:
+          type: string
+          example: ok
+        error:
+          type: string
+          nullable: true
+          example: ""
         data:
           type: object
-        error:
-          nullable: true
-          example: null
-        meta:
-          $ref: '#/components/schemas/Meta'
 
     SessionStatus:
       type: string
@@ -663,6 +658,8 @@ components:
     PrdArtifact:
       type: object
       properties:
+        version:
+          type: integer
         title:
           type: string
         background:
@@ -717,6 +714,8 @@ components:
     TodoArtifact:
       type: object
       properties:
+        version:
+          type: integer
         items:
           type: array
           items:
@@ -755,10 +754,14 @@ components:
         current_stage:
           type: string
         input:
+          $ref: '#/components/schemas/CreateSessionInput'
+        prd:
+          $ref: '#/components/schemas/PrdArtifact'
+        todo:
+          $ref: '#/components/schemas/TodoArtifact'
+        preview:
           type: object
           additionalProperties: true
-        artifacts_summary:
-          $ref: '#/components/schemas/SessionArtifactsSummary'
         message:
           type: string
         next_actions:
@@ -1032,8 +1035,18 @@ components:
           type: string
         source_code:
           type: string
+        event_type:
+          type: string
         message:
           type: string
+        session_id:
+          type: string
+        execution_id:
+          type: string
+          nullable: true
+        todo_id:
+          type: string
+          nullable: true
         data:
           type: object
           additionalProperties: true

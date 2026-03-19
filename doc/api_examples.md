@@ -213,6 +213,9 @@ curl -X POST "$BASE/sessions" \
 ```json
 {
   "success": true,
+  "code": "",
+  "message": "ok",
+  "error": "",
   "data": {
     "session_id": "sess_001",
     "stage": "waiting_prd_confirm",
@@ -220,6 +223,7 @@ curl -X POST "$BASE/sessions" \
     "message": "PRD 已生成，请确认后进入 Todo 阶段",
     "artifacts": {
       "prd": {
+        "version": 1,
         "title": "某产品学习与预览内容生成",
         "background": "用户希望基于商品 URL 理解产品并生成预览素材",
         "goals": [
@@ -242,9 +246,7 @@ curl -X POST "$BASE/sessions" \
       "edit_prd",
       "cancel"
     ]
-  },
-  "error": null,
-  "meta": {}
+  }
 }
 ```
 
@@ -254,7 +256,39 @@ curl -X POST "$BASE/sessions" \
 curl "$BASE/sessions/sess_001"
 ```
 
+示例响应（注意这里直接返回 session 对象，而不是 `artifacts_summary`）：
+
+```json
+{
+  "success": true,
+  "code": "",
+  "message": "ok",
+  "error": "",
+  "data": {
+    "session_id": "sess_001",
+    "status": "waiting_prd_confirm",
+    "current_stage": "waiting_prd_confirm",
+    "input": {
+      "type": "product_url_learning",
+      "url": "https://example.com/product/123",
+      "message": "我想学习下这个产品，并生成一版商品预览内容",
+      "platform": "xiaohongshu",
+      "language": "zh-CN",
+      "style": "clean"
+    },
+    "prd": {
+      "version": 1,
+      "title": "产品学习与预览内容生成"
+    },
+    "message": "PRD 已生成，请确认后进入 Todo 阶段",
+    "next_actions": ["confirm_prd", "edit_prd", "cancel"]
+  }
+}
+```
+
 ## 3. 编辑 PRD
+
+示例：edit 后返回的 `artifacts.prd.version` 会递增。
 
 ```bash
 curl -X POST "$BASE/sessions/sess_001/edit-prd" \
@@ -285,6 +319,9 @@ curl -X POST "$BASE/sessions/sess_001/confirm-prd" \
 ```json
 {
   "success": true,
+  "code": "",
+  "message": "ok",
+  "error": "",
   "data": {
     "session_id": "sess_001",
     "stage": "waiting_todo_confirm",
@@ -292,6 +329,7 @@ curl -X POST "$BASE/sessions/sess_001/confirm-prd" \
     "message": "Todo 已生成，请确认后开始执行",
     "artifacts": {
       "todo": {
+        "version": 1,
         "items": [
           {
             "id": "todo_1",
@@ -340,9 +378,7 @@ curl -X POST "$BASE/sessions/sess_001/confirm-prd" \
       "edit_todo",
       "cancel"
     ]
-  },
-  "error": null,
-  "meta": {}
+  }
 }
 ```
 
@@ -353,6 +389,8 @@ curl "$BASE/sessions/sess_001/todo"
 ```
 
 ## 6. 编辑 Todo
+
+示例：edit 后返回的 `artifacts.todo.version` 会递增。
 
 ```bash
 curl -X POST "$BASE/sessions/sess_001/edit-todo" \
@@ -416,6 +454,9 @@ curl "$BASE/sessions/sess_001/executions"
 ```json
 {
   "success": true,
+  "code": "",
+  "message": "ok",
+  "error": "",
   "data": {
     "session_id": "sess_001",
     "status": "executing",
@@ -426,7 +467,7 @@ curl "$BASE/sessions/sess_001/executions"
         "todo_id": "todo_1",
         "title": "生成产品标题",
         "executor": "executor",
-        "skill_code": "generate_product_title",
+        "skill_code": "title_generation",
         "status": "done",
         "attempt": 1,
         "retry_of_execution_id": null,
@@ -439,7 +480,7 @@ curl "$BASE/sessions/sess_001/executions"
         "todo_id": "todo_2",
         "title": "生成图片描述图内容",
         "executor": "executor",
-        "skill_code": "generate_image_caption",
+        "skill_code": "feature_image_copy",
         "status": "failed",
         "attempt": 1,
         "retry_of_execution_id": null,
@@ -452,17 +493,15 @@ curl "$BASE/sessions/sess_001/executions"
         "todo_id": "todo_3",
         "title": "生成产品轮播图内容",
         "executor": "executor",
-        "skill_code": "generate_carousel_copy",
-        "status": "running",
+        "skill_code": "carousel_generation",
+        "status": "queued",
         "attempt": 1,
         "retry_of_execution_id": null,
         "started_at": "2026-03-19T07:20:01+08:00",
         "finished_at": null
       }
     ]
-  },
-  "error": null,
-  "meta": {}
+  }
 }
 ```
 
@@ -477,6 +516,9 @@ curl "$BASE/sessions/sess_001/executions/exec_002"
 ```json
 {
   "success": true,
+  "code": "",
+  "message": "ok",
+  "error": "",
   "data": {
     "execution_id": "exec_002",
     "parent_execution_id": null,
@@ -509,9 +551,13 @@ curl "$BASE/sessions/sess_001/executions/exec_002"
         "log_id": 101,
         "time": "2026-03-19T07:20:00+08:00",
         "level": "info",
-        "source_type": "agent",
-        "source_code": "executor",
-        "message": "execution started",
+        "source_type": "scheduler",
+        "source_code": "runtime",
+        "event_type": "execution.queued",
+        "message": "execution queued",
+        "session_id": "sess_001",
+        "execution_id": "exec_002",
+        "todo_id": "todo_2",
         "data": {
           "attempt": 1
         }
@@ -521,16 +567,18 @@ curl "$BASE/sessions/sess_001/executions/exec_002"
         "time": "2026-03-19T07:20:08+08:00",
         "level": "error",
         "source_type": "skill",
-        "source_code": "generate_image_caption",
-        "message": "model timeout",
+        "source_code": "feature_image_copy",
+        "event_type": "execution.failed",
+        "message": "execution failed",
+        "session_id": "sess_001",
+        "execution_id": "exec_002",
+        "todo_id": "todo_2",
         "data": {
           "error_code": "MODEL_TIMEOUT"
         }
       }
     ]
-  },
-  "error": null,
-  "meta": {}
+  }
 }
 ```
 
@@ -563,6 +611,9 @@ curl "$BASE/sessions/sess_001/executions/exec_002/logs?limit=100&offset=0"
 ```json
 {
   "success": true,
+  "code": "",
+  "message": "ok",
+  "error": "",
   "data": {
     "session_id": "sess_001",
     "execution_id": "exec_002",
@@ -571,11 +622,12 @@ curl "$BASE/sessions/sess_001/executions/exec_002/logs?limit=100&offset=0"
         "log_id": 101,
         "time": "2026-03-19T07:20:00+08:00",
         "level": "info",
-        "source_type": "agent",
-        "source_code": "executor",
-        "message": "execution started",
+        "source_type": "scheduler",
+        "source_code": "runtime",
+        "event_type": "execution.queued",
+        "message": "execution queued",
         "data": {
-          "event": "execution.started"
+          "attempt": 1
         }
       },
       {
@@ -583,18 +635,16 @@ curl "$BASE/sessions/sess_001/executions/exec_002/logs?limit=100&offset=0"
         "time": "2026-03-19T07:20:08+08:00",
         "level": "error",
         "source_type": "skill",
-        "source_code": "generate_image_caption",
-        "message": "model timeout",
+        "source_code": "feature_image_copy",
+        "event_type": "execution.failed",
+        "message": "execution failed",
         "data": {
-          "event": "execution.failed",
           "error_code": "MODEL_TIMEOUT"
         }
       }
     ],
     "total": 2
-  },
-  "error": null,
-  "meta": {}
+  }
 }
 ```
 
@@ -620,6 +670,9 @@ curl -X POST "$BASE/sessions/sess_001/executions/retry" \
 ```json
 {
   "success": true,
+  "code": "",
+  "message": "ok",
+  "error": "",
   "data": {
     "session_id": "sess_001",
     "status": "executing",
@@ -635,9 +688,7 @@ curl -X POST "$BASE/sessions/sess_001/executions/retry" \
         "reason": null
       }
     ]
-  },
-  "error": null,
-  "meta": {}
+  }
 }
 ```
 
@@ -666,6 +717,9 @@ curl "$BASE/sessions/sess_001/preview"
 ```json
 {
   "success": true,
+  "code": "",
+  "message": "ok",
+  "error": "",
   "data": {
     "session_id": "sess_001",
     "status": "done",
@@ -689,9 +743,7 @@ curl "$BASE/sessions/sess_001/preview"
         "scenes": []
       }
     }
-  },
-  "error": null,
-  "meta": {}
+  }
 }
 ```
 
