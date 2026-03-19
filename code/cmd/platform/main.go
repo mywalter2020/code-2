@@ -94,6 +94,18 @@ func main() {
 	)
 	server.AttachAdapterRuntime(api, adapterRegistry, credentialStore)
 
+	runtimeDriver := config.GetEnv("JUYU_RUNTIME_STORE", "memory")
+	switch runtimeDriver {
+	case "postgres", "pg":
+		runtimePG, err := store.NewRuntimePostgresStore(pgDSN)
+		if err != nil {
+			log.Fatalf("init runtime postgres store failed: %v", err)
+		}
+		server.AttachRuntimeStore(api, runtimePG, runtimeDriver)
+	default:
+		server.AttachRuntimeStore(api, store.NewRuntimeMemoryStore(), runtimeDriver)
+	}
+
 	mux := http.NewServeMux()
 	api.Register(mux)
 

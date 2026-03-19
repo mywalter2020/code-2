@@ -25,8 +25,9 @@ type Server struct {
 	credentialStore interface {
 		List() []types.AdapterCredentials
 	}
-	apiKey       string
-	operatorAuth operatorAuth
+	apiKey        string
+	operatorAuth  operatorAuth
+	runtimeDriver string
 }
 
 func New(orc *orchestrator.Orchestrator, rg *registry.Registry, abilityMetadata []types.AbilityMetadata, masterMetadata []types.MasterAgentMetadata, bindingViews []types.BindingView, apiKey string, operatorTokens string) *Server {
@@ -34,6 +35,7 @@ func New(orc *orchestrator.Orchestrator, rg *registry.Registry, abilityMetadata 
 		orc:             orc,
 		rg:              rg,
 		runtimeStore:    store.NewRuntimeMemoryStore(),
+		runtimeDriver:   "memory",
 		abilityMetadata: abilityMetadata,
 		masterMetadata:  masterMetadata,
 		bindingViews:    bindingViews,
