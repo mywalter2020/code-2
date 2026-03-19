@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
+	"time"
 
 	_ "github.com/lib/pq"
 	"juyu-ai-platform/internal/types"
@@ -31,26 +33,105 @@ func NewRuntimePostgresStore(dsn string) (*RuntimePostgresStore, error) {
 
 func (s *RuntimePostgresStore) init() error {
 	_, err := s.db.Exec(`
-	CREATE TABLE IF NOT EXISTS runtime_sessions (
+	CREATE TABLE IF NOT EXISTS sessions (
 		id TEXT PRIMARY KEY,
+		input_type TEXT NOT NULL,
 		status TEXT NOT NULL,
-		payload JSONB NOT NULL,
-		updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+		current_stage TEXT NOT NULL,
+		user_input JSONB NOT NULL DEFAULT '{}'::jsonb,
+		prd_version INTEGER NOT NULL DEFAULT 0,
+		todo_version INTEGER NOT NULL DEFAULT 0,
+		preview_version INTEGER NOT NULL DEFAULT 0,
+		latest_error_code TEXT,
+		latest_error_message TEXT,
+		created_by TEXT,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+		updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+		canceled_at TIMESTAMPTZ,
+		completed_at TIMESTAMPTZ
 	);
-	CREATE INDEX IF NOT EXISTS idx_runtime_sessions_status ON runtime_sessions(status);
-	CREATE INDEX IF NOT EXISTS idx_runtime_sessions_updated_at ON runtime_sessions(updated_at DESC);
-
-	CREATE TABLE IF NOT EXISTS runtime_logs (
+	CREATE TABLE IF NOT EXISTS session_artifacts (
 		id BIGSERIAL PRIMARY KEY,
-		session_id TEXT NOT NULL REFERENCES runtime_sessions(id) ON DELETE CASCADE,
-		execution_id TEXT,
+		session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+		artifact_type TEXT NOT NULL,
+		version INTEGER NOT NULL,
+		content_format TEXT NOT NULL DEFAULT 'json',
+		content JSONB NOT NULL DEFAULT '{}'::jsonb,
+		markdown_content TEXT,
+		summary TEXT,
+		created_by_agent TEXT,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+		updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+		is_current BOOLEAN NOT NULL DEFAULT true,
+		UNIQUE(session_id, artifact_type, version)
+	);
+	CREATE TABLE IF NOT EXISTS todo_items (
+		id TEXT NOT NULL,
+		session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+		version INTEGER NOT NULL,
+		title TEXT NOT NULL,
+		task_type TEXT NOT NULL,
+		description TEXT,
+		status TEXT NOT NULL,
+		priority INTEGER NOT NULL DEFAULT 100,
+		parallel_group TEXT,
+		depends_on JSONB NOT NULL DEFAULT '[]'::jsonb,
+		acceptance_criteria JSONB NOT NULL DEFAULT '[]'::jsonb,
+		assigned_agent TEXT,
+		result_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+		sort_order INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+		updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+		finished_at TIMESTAMPTZ,
+		PRIMARY KEY(id, session_id, version)
+	);
+	CREATE TABLE IF NOT EXISTS execution_records (
+		id TEXT PRIMARY KEY,
+		session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+		todo_id TEXT NOT NULL,
+		todo_version INTEGER NOT NULL,
+		parent_execution_id TEXT REFERENCES execution_records(id) ON DELETE SET NULL,
+		retry_of_execution_id TEXT REFERENCES execution_records(id) ON DELETE SET NULL,
+		executor_agent TEXT NOT NULL,
+		skill_code TEXT,
+		status TEXT NOT NULL,
+		attempt INTEGER NOT NULL DEFAULT 1,
+		queue_reason TEXT,
+		input_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+		output_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+		metrics JSONB NOT NULL DEFAULT '{}'::jsonb,
+		reasoning_summary TEXT,
+		error_code TEXT,
+		error_message TEXT,
+		created_by TEXT,
+		started_at TIMESTAMPTZ,
+		finished_at TIMESTAMPTZ,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+		updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+		UNIQUE(session_id, todo_id, todo_version, attempt),
+		FOREIGN KEY (todo_id, session_id, todo_version)
+		  REFERENCES todo_items(id, session_id, version)
+		  ON DELETE CASCADE
+	);
+	CREATE TABLE IF NOT EXISTS logs (
+		id BIGSERIAL PRIMARY KEY,
+		session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+		execution_id TEXT REFERENCES execution_records(id) ON DELETE CASCADE,
 		todo_id TEXT,
 		level TEXT NOT NULL,
-		payload JSONB NOT NULL,
+		source_type TEXT NOT NULL,
+		source_code TEXT NOT NULL,
+		event_type TEXT NOT NULL,
+		message TEXT NOT NULL,
+		data JSONB NOT NULL DEFAULT '{}'::jsonb,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	);
-	CREATE INDEX IF NOT EXISTS idx_runtime_logs_session_created_at ON runtime_logs(session_id, created_at);
-	CREATE INDEX IF NOT EXISTS idx_runtime_logs_execution_created_at ON runtime_logs(execution_id, created_at);
+	CREATE INDEX IF NOT EXISTS idx_sessions_updated_at ON sessions(updated_at DESC);
+	CREATE INDEX IF NOT EXISTS idx_session_artifacts_type_current ON session_artifacts(session_id, artifact_type, is_current);
+	CREATE INDEX IF NOT EXISTS idx_todo_items_session_version ON todo_items(session_id, version);
+	CREATE INDEX IF NOT EXISTS idx_execution_records_todo ON execution_records(session_id, todo_id, todo_version);
+	CREATE INDEX IF NOT EXISTS idx_logs_session_created_at ON logs(session_id, created_at);
+	CREATE INDEX IF NOT EXISTS idx_logs_execution_created_at ON logs(execution_id, created_at);
 	`)
 	return err
 }
@@ -61,19 +142,15 @@ func (s *RuntimePostgresStore) CreateSession(input types.CreateSessionInput) (*t
 	if err != nil {
 		return nil, err
 	}
-	if err := s.saveProjection(mem, sess.SessionID); err != nil {
-		return nil, err
-	}
-	return sess, nil
+	return sess, s.persistFromMemory(mem, sess.SessionID)
 }
 
 func (s *RuntimePostgresStore) GetSession(sessionID string) (*types.RuntimeSession, error) {
-	_, sess, err := s.loadProjection(sessionID)
-	return sess, err
+	return s.rebuildSession(sessionID)
 }
 
 func (s *RuntimePostgresStore) EditPrd(sessionID string, patch map[string]any, comment string) (*types.RuntimeSession, error) {
-	mem, _, err := s.loadProjection(sessionID)
+	mem, err := s.loadMemoryFromDB(sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -81,11 +158,11 @@ func (s *RuntimePostgresStore) EditPrd(sessionID string, patch map[string]any, c
 	if err != nil {
 		return nil, err
 	}
-	return sess, s.saveProjection(mem, sessionID)
+	return sess, s.persistFromMemory(mem, sessionID)
 }
 
 func (s *RuntimePostgresStore) ConfirmPrd(sessionID string, comment string) (*types.RuntimeSession, error) {
-	mem, _, err := s.loadProjection(sessionID)
+	mem, err := s.loadMemoryFromDB(sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -93,19 +170,22 @@ func (s *RuntimePostgresStore) ConfirmPrd(sessionID string, comment string) (*ty
 	if err != nil {
 		return nil, err
 	}
-	return sess, s.saveProjection(mem, sessionID)
+	return sess, s.persistFromMemory(mem, sessionID)
 }
 
 func (s *RuntimePostgresStore) GetTodo(sessionID string) (*types.RuntimeTodoArtifact, error) {
-	mem, _, err := s.loadProjection(sessionID)
+	sess, err := s.rebuildSession(sessionID)
 	if err != nil {
 		return nil, err
 	}
-	return mem.GetTodo(sessionID)
+	if sess.Todo == nil {
+		return nil, fmt.Errorf("todo not found for session: %s", sessionID)
+	}
+	return cloneRuntimeTodo(sess.Todo), nil
 }
 
 func (s *RuntimePostgresStore) EditTodo(sessionID string, items []types.RuntimeTodoItem, comment string) (*types.RuntimeSession, error) {
-	mem, _, err := s.loadProjection(sessionID)
+	mem, err := s.loadMemoryFromDB(sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -113,11 +193,11 @@ func (s *RuntimePostgresStore) EditTodo(sessionID string, items []types.RuntimeT
 	if err != nil {
 		return nil, err
 	}
-	return sess, s.saveProjection(mem, sessionID)
+	return sess, s.persistFromMemory(mem, sessionID)
 }
 
 func (s *RuntimePostgresStore) ConfirmTodo(sessionID string, comment string) (*types.RuntimeSession, error) {
-	mem, _, err := s.loadProjection(sessionID)
+	mem, err := s.loadMemoryFromDB(sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -125,11 +205,11 @@ func (s *RuntimePostgresStore) ConfirmTodo(sessionID string, comment string) (*t
 	if err != nil {
 		return nil, err
 	}
-	return sess, s.saveProjection(mem, sessionID)
+	return sess, s.persistFromMemory(mem, sessionID)
 }
 
 func (s *RuntimePostgresStore) CancelSession(sessionID string, reason string) (*types.RuntimeSession, error) {
-	mem, _, err := s.loadProjection(sessionID)
+	mem, err := s.loadMemoryFromDB(sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -137,27 +217,29 @@ func (s *RuntimePostgresStore) CancelSession(sessionID string, reason string) (*
 	if err != nil {
 		return nil, err
 	}
-	return sess, s.saveProjection(mem, sessionID)
+	return sess, s.persistFromMemory(mem, sessionID)
 }
 
 func (s *RuntimePostgresStore) ListExecutions(sessionID string) ([]types.RuntimeExecution, error) {
-	mem, _, err := s.loadProjection(sessionID)
-	if err != nil {
-		return nil, err
-	}
-	return mem.ListExecutions(sessionID)
+	return s.loadExecutions(sessionID)
 }
 
 func (s *RuntimePostgresStore) GetExecution(sessionID, executionID string) (*types.RuntimeExecution, error) {
-	mem, _, err := s.loadProjection(sessionID)
+	items, err := s.loadExecutions(sessionID)
 	if err != nil {
 		return nil, err
 	}
-	return mem.GetExecution(sessionID, executionID)
+	for _, item := range items {
+		if item.ExecutionID == executionID {
+			cp := item
+			return &cp, nil
+		}
+	}
+	return nil, fmt.Errorf("execution not found: %s", executionID)
 }
 
 func (s *RuntimePostgresStore) RetryExecutions(sessionID string, req types.RetryExecutionsRequest) ([]types.RetryResultItem, *types.RuntimeSession, error) {
-	mem, _, err := s.loadProjection(sessionID)
+	mem, err := s.loadMemoryFromDB(sessionID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -165,111 +247,326 @@ func (s *RuntimePostgresStore) RetryExecutions(sessionID string, req types.Retry
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := s.saveProjection(mem, sessionID); err != nil {
+	if err := s.persistFromMemory(mem, sessionID); err != nil {
 		return nil, nil, err
 	}
 	return items, sess, nil
 }
 
 func (s *RuntimePostgresStore) ListLogs(sessionID, executionID, todoID, level string, limit, offset int) ([]types.RuntimeLogEntry, int, error) {
-	mem, _, err := s.loadProjection(sessionID)
+	query := `SELECT id, execution_id, todo_id, level, source_type, source_code, event_type, message, data, created_at FROM logs WHERE session_id = $1`
+	args := []any{sessionID}
+	idx := 2
+	if executionID != "" {
+		query += fmt.Sprintf(" AND execution_id = $%d", idx)
+		args = append(args, executionID)
+		idx++
+	}
+	if todoID != "" {
+		query += fmt.Sprintf(" AND todo_id = $%d", idx)
+		args = append(args, todoID)
+		idx++
+	}
+	if level != "" {
+		query += fmt.Sprintf(" AND level = $%d", idx)
+		args = append(args, strings.ToLower(level))
+		idx++
+	}
+	query += " ORDER BY created_at ASC"
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
-	return mem.ListLogs(sessionID, executionID, todoID, level, limit, offset)
+	defer rows.Close()
+	items := make([]types.RuntimeLogEntry, 0)
+	for rows.Next() {
+		var item types.RuntimeLogEntry
+		var data []byte
+		if err := rows.Scan(&item.LogID, &item.ExecutionID, &item.TodoID, &item.Level, &item.SourceType, &item.SourceCode, &item.EventType, &item.Message, &data, &item.Time); err != nil {
+			return nil, 0, err
+		}
+		item.SessionID = sessionID
+		if len(data) > 0 {
+			_ = json.Unmarshal(data, &item.Data)
+		}
+		items = append(items, item)
+	}
+	total := len(items)
+	if offset > total {
+		return []types.RuntimeLogEntry{}, total, nil
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return append([]types.RuntimeLogEntry{}, items[offset:end]...), total, nil
 }
 
 func (s *RuntimePostgresStore) GetPreview(sessionID string) (map[string]any, *types.RuntimeSession, error) {
-	mem, _, err := s.loadProjection(sessionID)
+	sess, err := s.rebuildSession(sessionID)
 	if err != nil {
 		return nil, nil, err
 	}
-	return mem.GetPreview(sessionID)
+	preview := map[string]any{}
+	for k, v := range sess.Preview {
+		preview[k] = v
+	}
+	return preview, sess, nil
 }
 
-func (s *RuntimePostgresStore) loadProjection(sessionID string) (*RuntimeMemoryStore, *types.RuntimeSession, error) {
-	var payload []byte
-	row := s.db.QueryRow(`SELECT payload FROM runtime_sessions WHERE id = $1`, sessionID)
-	if err := row.Scan(&payload); err != nil {
-		return nil, nil, err
+func (s *RuntimePostgresStore) loadMemoryFromDB(sessionID string) (*RuntimeMemoryStore, error) {
+	sess, err := s.rebuildSession(sessionID)
+	if err != nil {
+		return nil, err
 	}
-	var stored runtimeSessionPayload
-	if err := json.Unmarshal(payload, &stored); err != nil {
-		return nil, nil, err
+	executions, err := s.loadExecutions(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	logs, _, err := s.ListLogs(sessionID, "", "", "", 10000, 0)
+	if err != nil {
+		return nil, err
 	}
 	mem := NewRuntimeMemoryStore()
-	mem.sessions[sessionID] = cloneRuntimeSession(stored.Session)
-	mem.executions[sessionID] = append([]types.RuntimeExecution{}, stored.Executions...)
-	mem.logs[sessionID] = append([]types.RuntimeLogEntry{}, stored.Logs...)
+	mem.sessions[sessionID] = cloneRuntimeSession(sess)
+	mem.executions[sessionID] = executions
+	mem.logs[sessionID] = logs
 	mem.sessionCounter = maxSessionCounterID(sessionID)
-	mem.execCounter = maxExecutionCounter(stored.Executions)
-	mem.logCounter = maxLogCounter(stored.Logs)
-	return mem, cloneRuntimeSession(stored.Session), nil
+	mem.execCounter = maxExecutionCounter(executions)
+	mem.logCounter = maxLogCounter(logs)
+	return mem, nil
 }
 
-func (s *RuntimePostgresStore) saveProjection(mem *RuntimeMemoryStore, sessionID string) error {
-	sess, ok := mem.sessions[sessionID]
-	if !ok {
-		return fmt.Errorf("session not found: %s", sessionID)
+func (s *RuntimePostgresStore) rebuildSession(sessionID string) (*types.RuntimeSession, error) {
+	row := s.db.QueryRow(`SELECT input_type, status, current_stage, user_input, created_at, updated_at FROM sessions WHERE id = $1`, sessionID)
+	var inputType, status, stage string
+	var userInput []byte
+	var createdAt, updatedAt time.Time
+	if err := row.Scan(&inputType, &status, &stage, &userInput, &createdAt, &updatedAt); err != nil {
+		return nil, err
 	}
-	payload := runtimeSessionPayload{
-		Session:    cloneRuntimeSession(sess),
-		Executions: append([]types.RuntimeExecution{}, mem.executions[sessionID]...),
-		Logs:       append([]types.RuntimeLogEntry{}, mem.logs[sessionID]...),
-	}
-	blob, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	_, err = s.db.Exec(`
-	INSERT INTO runtime_sessions(id, status, payload, updated_at)
-	VALUES($1, $2, $3::jsonb, now())
-	ON CONFLICT(id) DO UPDATE SET
-	status = EXCLUDED.status,
-	payload = EXCLUDED.payload,
-	updated_at = EXCLUDED.updated_at
-	`, sessionID, string(sess.Status), string(blob))
-	if err != nil {
-		return err
-	}
-	return s.replaceLogs(sessionID, mem.logs[sessionID])
+	var input types.CreateSessionInput
+	_ = json.Unmarshal(userInput, &input)
+	input.Type = inputType
+	prd, _ := s.loadArtifactPRD(sessionID)
+	preview, _ := s.loadArtifactMap(sessionID, "preview")
+	todo, _ := s.loadTodo(sessionID)
+	return &types.RuntimeSession{
+		SessionID:    sessionID,
+		Status:       types.SessionStatus(status),
+		CurrentStage: stage,
+		Input:        input,
+		PRD:          prd,
+		Todo:         todo,
+		Preview:      preview,
+		Message:      messageForStatus(types.SessionStatus(status)),
+		NextActions:  nextActionsForStatus(types.SessionStatus(status)),
+		CreatedAt:    createdAt,
+		UpdatedAt:    updatedAt,
+	}, nil
 }
 
-func (s *RuntimePostgresStore) replaceLogs(sessionID string, logs []types.RuntimeLogEntry) error {
+func (s *RuntimePostgresStore) persistFromMemory(mem *RuntimeMemoryStore, sessionID string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if _, err := tx.Exec(`DELETE FROM runtime_logs WHERE session_id = $1`, sessionID); err != nil {
+	sess, ok := mem.sessions[sessionID]
+	if !ok {
+		return fmt.Errorf("session not found: %s", sessionID)
+	}
+	inputJSON, _ := json.Marshal(sess.Input)
+	_, err = tx.Exec(`
+	INSERT INTO sessions(id, input_type, status, current_stage, user_input, prd_version, todo_version, preview_version, latest_error_code, latest_error_message, created_at, updated_at)
+	VALUES($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12)
+	ON CONFLICT(id) DO UPDATE SET
+	input_type=EXCLUDED.input_type,
+	status=EXCLUDED.status,
+	current_stage=EXCLUDED.current_stage,
+	user_input=EXCLUDED.user_input,
+	prd_version=EXCLUDED.prd_version,
+	todo_version=EXCLUDED.todo_version,
+	preview_version=EXCLUDED.preview_version,
+	latest_error_code=EXCLUDED.latest_error_code,
+	latest_error_message=EXCLUDED.latest_error_message,
+	updated_at=EXCLUDED.updated_at
+	`, sess.SessionID, sess.Input.Type, string(sess.Status), sess.CurrentStage, string(inputJSON), versionForArtifact(sess.PRD), versionForTodo(sess.Todo), versionForPreview(sess.Preview), latestErrorCode(mem.executions[sessionID]), latestErrorMessage(mem.executions[sessionID]), nonZeroTime(sess.CreatedAt), time.Now())
+	if err != nil {
 		return err
 	}
-	for _, item := range logs {
-		blob, err := json.Marshal(item)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(`
-			INSERT INTO runtime_logs(session_id, execution_id, todo_id, level, payload)
-			VALUES($1,$2,$3,$4,$5::jsonb)
-		`, sessionID, nullIfEmpty(item.ExecutionID), nullIfEmpty(item.TodoID), item.Level, string(blob)); err != nil {
-			return err
-		}
+	if err := s.replaceArtifactsTx(tx, sess); err != nil {
+		return err
+	}
+	if err := s.replaceTodoItemsTx(tx, sessionID, sess.Todo); err != nil {
+		return err
+	}
+	if err := s.replaceExecutionsTx(tx, sessionID, mem.executions[sessionID]); err != nil {
+		return err
+	}
+	if err := s.replaceLogsTx(tx, sessionID, mem.logs[sessionID]); err != nil {
+		return err
 	}
 	return tx.Commit()
 }
 
-type runtimeSessionPayload struct {
-	Session    *types.RuntimeSession    `json:"session"`
-	Executions []types.RuntimeExecution `json:"executions"`
-	Logs       []types.RuntimeLogEntry  `json:"logs"`
+func (s *RuntimePostgresStore) replaceArtifactsTx(tx *sql.Tx, sess *types.RuntimeSession) error {
+	if _, err := tx.Exec(`DELETE FROM session_artifacts WHERE session_id = $1`, sess.SessionID); err != nil {
+		return err
+	}
+	if sess.PRD != nil {
+		content, _ := json.Marshal(sess.PRD)
+		_, err := tx.Exec(`INSERT INTO session_artifacts(session_id, artifact_type, version, content_format, content, markdown_content, summary, created_by_agent, is_current) VALUES($1,'prd',1,'mixed',$2::jsonb,$3,$4,'analyst',true)`, sess.SessionID, string(content), sess.PRD.Markdown, sess.PRD.Title)
+		if err != nil {
+			return err
+		}
+	}
+	if sess.Todo != nil {
+		content, _ := json.Marshal(sess.Todo)
+		_, err := tx.Exec(`INSERT INTO session_artifacts(session_id, artifact_type, version, content_format, content, summary, created_by_agent, is_current) VALUES($1,'todo',1,'json',$2::jsonb,$3,'planner',true)`, sess.SessionID, string(content), "todo list")
+		if err != nil {
+			return err
+		}
+	}
+	if len(sess.Preview) > 0 {
+		content, _ := json.Marshal(sess.Preview)
+		_, err := tx.Exec(`INSERT INTO session_artifacts(session_id, artifact_type, version, content_format, content, summary, created_by_agent, is_current) VALUES($1,'preview',1,'json',$2::jsonb,$3,'executor',true)`, sess.SessionID, string(content), "preview payload")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func nullIfEmpty(v string) any {
-	if v == "" {
+func (s *RuntimePostgresStore) replaceTodoItemsTx(tx *sql.Tx, sessionID string, todo *types.RuntimeTodoArtifact) error {
+	if _, err := tx.Exec(`DELETE FROM todo_items WHERE session_id = $1`, sessionID); err != nil {
+		return err
+	}
+	if todo == nil {
 		return nil
 	}
-	return v
+	for i, item := range todo.Items {
+		dependsOn, _ := json.Marshal(item.DependsOn)
+		criteria, _ := json.Marshal(item.AcceptanceCriteria)
+		result, _ := json.Marshal(item.Result)
+		_, err := tx.Exec(`INSERT INTO todo_items(id, session_id, version, title, task_type, description, status, parallel_group, depends_on, acceptance_criteria, result_snapshot, sort_order, updated_at) VALUES($1,$2,1,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,$11,now())`, item.ID, sessionID, item.Title, item.Type, item.Description, string(item.Status), nullIfEmptyString(item.ParallelGroup), string(dependsOn), string(criteria), string(result), i)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *RuntimePostgresStore) replaceExecutionsTx(tx *sql.Tx, sessionID string, items []types.RuntimeExecution) error {
+	if _, err := tx.Exec(`DELETE FROM execution_records WHERE session_id = $1`, sessionID); err != nil {
+		return err
+	}
+	for _, item := range items {
+		in, _ := json.Marshal(item.Input)
+		out, _ := json.Marshal(item.Output)
+		metrics, _ := json.Marshal(item.Metrics)
+		_, err := tx.Exec(`INSERT INTO execution_records(id, session_id, todo_id, todo_version, parent_execution_id, retry_of_execution_id, executor_agent, skill_code, status, attempt, queue_reason, input_payload, output_payload, metrics, reasoning_summary, error_code, error_message, created_by, started_at, finished_at, created_at, updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14::jsonb,$15,$16,$17,$18,$19,$20,$21,now())`, item.ExecutionID, sessionID, item.TodoID, coalesceInt(item.TodoVersion, 1), nullIfEmptyString(item.ParentExecutionID), nullIfEmptyString(item.RetryOfExecutionID), nullIfEmptyString(item.Executor), nullIfEmptyString(item.SkillCode), string(item.Status), coalesceInt(item.Attempt, 1), nullIfEmptyString(item.QueueReason), string(in), string(out), string(metrics), item.ReasoningSummary, nullIfEmptyString(item.ErrorCode), nullIfEmptyString(item.ErrorMessage), "system", nullableTime(item.StartedAt), nullableTime(item.FinishedAt), nonZeroTime(item.CreatedAt))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *RuntimePostgresStore) replaceLogsTx(tx *sql.Tx, sessionID string, items []types.RuntimeLogEntry) error {
+	if _, err := tx.Exec(`DELETE FROM logs WHERE session_id = $1`, sessionID); err != nil {
+		return err
+	}
+	for _, item := range items {
+		data, _ := json.Marshal(item.Data)
+		_, err := tx.Exec(`INSERT INTO logs(session_id, execution_id, todo_id, level, source_type, source_code, event_type, message, data, created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)`, sessionID, nullIfEmptyString(item.ExecutionID), nullIfEmptyString(item.TodoID), strings.ToLower(item.Level), item.SourceType, item.SourceCode, nonEmpty(item.EventType, "runtime.event"), item.Message, string(data), nonZeroTime(item.Time))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *RuntimePostgresStore) loadArtifactPRD(sessionID string) (*types.RuntimePRD, error) {
+	m, err := s.loadArtifactMap(sessionID, "prd")
+	if err != nil {
+		return nil, err
+	}
+	if m == nil {
+		return nil, nil
+	}
+	blob, _ := json.Marshal(m)
+	var prd types.RuntimePRD
+	if err := json.Unmarshal(blob, &prd); err != nil {
+		return nil, err
+	}
+	return &prd, nil
+}
+
+func (s *RuntimePostgresStore) loadArtifactMap(sessionID, artifactType string) (map[string]any, error) {
+	row := s.db.QueryRow(`SELECT content FROM session_artifacts WHERE session_id = $1 AND artifact_type = $2 AND is_current = true ORDER BY version DESC LIMIT 1`, sessionID, artifactType)
+	var content []byte
+	if err := row.Scan(&content); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	out := map[string]any{}
+	if len(content) > 0 {
+		_ = json.Unmarshal(content, &out)
+	}
+	return out, nil
+}
+
+func (s *RuntimePostgresStore) loadTodo(sessionID string) (*types.RuntimeTodoArtifact, error) {
+	rows, err := s.db.Query(`SELECT id, title, task_type, description, status, parallel_group, depends_on, acceptance_criteria, result_snapshot FROM todo_items WHERE session_id = $1 AND version = 1 ORDER BY sort_order ASC`, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]types.RuntimeTodoItem, 0)
+	for rows.Next() {
+		var item types.RuntimeTodoItem
+		var dependsOn, criteria, result []byte
+		if err := rows.Scan(&item.ID, &item.Title, &item.Type, &item.Description, &item.Status, &item.ParallelGroup, &dependsOn, &criteria, &result); err != nil {
+			return nil, err
+		}
+		_ = json.Unmarshal(dependsOn, &item.DependsOn)
+		_ = json.Unmarshal(criteria, &item.AcceptanceCriteria)
+		_ = json.Unmarshal(result, &item.Result)
+		items = append(items, item)
+	}
+	if len(items) == 0 {
+		return nil, nil
+	}
+	return &types.RuntimeTodoArtifact{Items: items}, nil
+}
+
+func (s *RuntimePostgresStore) loadExecutions(sessionID string) ([]types.RuntimeExecution, error) {
+	rows, err := s.db.Query(`SELECT id, parent_execution_id, retry_of_execution_id, todo_id, todo_version, executor_agent, skill_code, status, attempt, queue_reason, input_payload, output_payload, metrics, reasoning_summary, error_code, error_message, created_at, started_at, finished_at FROM execution_records WHERE session_id = $1 ORDER BY created_at ASC`, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]types.RuntimeExecution, 0)
+	for rows.Next() {
+		var item types.RuntimeExecution
+		var in, out, metrics []byte
+		if err := rows.Scan(&item.ExecutionID, &item.ParentExecutionID, &item.RetryOfExecutionID, &item.TodoID, &item.TodoVersion, &item.Executor, &item.SkillCode, &item.Status, &item.Attempt, &item.QueueReason, &in, &out, &metrics, &item.ReasoningSummary, &item.ErrorCode, &item.ErrorMessage, &item.CreatedAt, &item.StartedAt, &item.FinishedAt); err != nil {
+			return nil, err
+		}
+		item.SessionID = sessionID
+		_ = json.Unmarshal(in, &item.Input)
+		_ = json.Unmarshal(out, &item.Output)
+		_ = json.Unmarshal(metrics, &item.Metrics)
+		items = append(items, item)
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].CreatedAt.Before(items[j].CreatedAt) })
+	return items, nil
 }
 
 func maxExecutionCounter(items []types.RuntimeExecution) int {
@@ -298,4 +595,110 @@ func maxLogCounter(items []types.RuntimeLogEntry) int64 {
 		}
 	}
 	return max
+}
+
+func nonZeroTime(t time.Time) time.Time {
+	if t.IsZero() {
+		return time.Now()
+	}
+	return t
+}
+
+func nullableTime(t *time.Time) any {
+	if t == nil || t.IsZero() {
+		return nil
+	}
+	return *t
+}
+
+func coalesceInt(v, fallback int) int {
+	if v == 0 {
+		return fallback
+	}
+	return v
+}
+
+func nullIfEmptyString(v string) any {
+	if strings.TrimSpace(v) == "" {
+		return nil
+	}
+	return v
+}
+
+func nonEmpty(v, fallback string) string {
+	if strings.TrimSpace(v) == "" {
+		return fallback
+	}
+	return v
+}
+
+func versionForArtifact(prd *types.RuntimePRD) int {
+	if prd == nil {
+		return 0
+	}
+	return 1
+}
+
+func versionForTodo(todo *types.RuntimeTodoArtifact) int {
+	if todo == nil {
+		return 0
+	}
+	return 1
+}
+
+func versionForPreview(preview map[string]any) int {
+	if len(preview) == 0 {
+		return 0
+	}
+	return 1
+}
+
+func latestErrorCode(items []types.RuntimeExecution) string {
+	for i := len(items) - 1; i >= 0; i-- {
+		if items[i].ErrorCode != "" {
+			return items[i].ErrorCode
+		}
+	}
+	return ""
+}
+
+func latestErrorMessage(items []types.RuntimeExecution) string {
+	for i := len(items) - 1; i >= 0; i-- {
+		if items[i].ErrorMessage != "" {
+			return items[i].ErrorMessage
+		}
+	}
+	return ""
+}
+
+func messageForStatus(status types.SessionStatus) string {
+	switch status {
+	case types.SessionStatusWaitingPrdConfirm:
+		return "PRD 已生成，请确认后进入 Todo 阶段"
+	case types.SessionStatusWaitingTodo:
+		return "Todo 已生成，请确认后开始执行"
+	case types.SessionStatusExecuting:
+		return "执行已启动"
+	case types.SessionStatusCanceled:
+		return "session canceled"
+	case types.SessionStatusDone:
+		return "session done"
+	case types.SessionStatusFailed:
+		return "session failed"
+	default:
+		return string(status)
+	}
+}
+
+func nextActionsForStatus(status types.SessionStatus) []string {
+	switch status {
+	case types.SessionStatusWaitingPrdConfirm:
+		return []string{"confirm_prd", "edit_prd", "cancel"}
+	case types.SessionStatusWaitingTodo:
+		return []string{"confirm_todo", "edit_todo", "cancel"}
+	case types.SessionStatusExecuting:
+		return []string{"list_executions", "view_logs", "cancel"}
+	default:
+		return nil
+	}
 }
