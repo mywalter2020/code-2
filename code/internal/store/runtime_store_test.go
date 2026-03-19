@@ -61,7 +61,7 @@ func TestRuntimeMemoryStoreMainFlow(t *testing.T) {
 		t.Fatalf("unexpected status after todo confirm: %s", sess.Status)
 	}
 
-	execs, err := s.ListExecutions(sess.SessionID)
+	execs, _, err := s.ListExecutions(sess.SessionID, "", "", 100, 0)
 	if err != nil {
 		t.Fatalf("list executions: %v", err)
 	}

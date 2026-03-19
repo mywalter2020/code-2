@@ -69,7 +69,7 @@ func TestRuntimePostgresStoreRoundTripIfConfigured(t *testing.T) {
 		t.Fatalf("expected reloaded todo version >=2, got %+v", reloaded.Todo)
 	}
 
-	execs, err := s.ListExecutions(sess.SessionID)
+	execs, _, err := s.ListExecutions(sess.SessionID, "", "", 100, 0)
 	if err != nil {
 		t.Fatalf("list executions: %v", err)
 	}

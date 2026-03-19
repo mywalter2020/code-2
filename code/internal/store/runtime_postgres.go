@@ -266,8 +266,33 @@ func (s *RuntimePostgresStore) CancelSession(sessionID string, reason string) (*
 	return sess, s.persistFromMemory(mem, sessionID)
 }
 
-func (s *RuntimePostgresStore) ListExecutions(sessionID string) ([]types.RuntimeExecution, error) {
-	return s.loadExecutions(sessionID)
+func (s *RuntimePostgresStore) ListExecutions(sessionID, status, todoID string, limit, offset int) ([]types.RuntimeExecution, int, error) {
+	items, err := s.loadExecutions(sessionID)
+	if err != nil {
+		return nil, 0, err
+	}
+	filtered := make([]types.RuntimeExecution, 0, len(items))
+	for _, item := range items {
+		if status != "" && string(item.Status) != status {
+			continue
+		}
+		if todoID != "" && item.TodoID != todoID {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	total := len(filtered)
+	if offset > total {
+		return []types.RuntimeExecution{}, total, nil
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return append([]types.RuntimeExecution{}, filtered[offset:end]...), total, nil
 }
 
 func (s *RuntimePostgresStore) GetExecution(sessionID, executionID string) (*types.RuntimeExecution, error) {

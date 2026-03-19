@@ -298,12 +298,32 @@ func (s *RuntimeMemoryStore) CancelSession(sessionID string, reason string) (*ty
 	return cloneRuntimeSession(sess), nil
 }
 
-func (s *RuntimeMemoryStore) ListExecutions(sessionID string) ([]types.RuntimeExecution, error) {
+func (s *RuntimeMemoryStore) ListExecutions(sessionID, status, todoID string, limit, offset int) ([]types.RuntimeExecution, int, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	items := s.executions[sessionID]
-	out := append([]types.RuntimeExecution{}, items...)
-	return out, nil
+	filtered := make([]types.RuntimeExecution, 0, len(items))
+	for _, item := range items {
+		if status != "" && string(item.Status) != status {
+			continue
+		}
+		if todoID != "" && item.TodoID != todoID {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	total := len(filtered)
+	if offset > total {
+		return []types.RuntimeExecution{}, total, nil
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return append([]types.RuntimeExecution{}, filtered[offset:end]...), total, nil
 }
 
 func (s *RuntimeMemoryStore) GetExecution(sessionID, executionID string) (*types.RuntimeExecution, error) {

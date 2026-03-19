@@ -115,7 +115,7 @@ func (s *Server) handleRuntimeSessionRoutes(w http.ResponseWriter, r *http.Reque
 			}
 		case "executions":
 			if r.Method == http.MethodGet {
-				s.handleRuntimeListExecutions(w, sessionID)
+				s.handleRuntimeListExecutions(w, r, sessionID)
 				return
 			}
 		case "logs":
@@ -233,18 +233,32 @@ func (s *Server) handleRuntimeConfirmTodo(w http.ResponseWriter, r *http.Request
 	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"session_id": sessionID, "stage": sess.CurrentStage, "status": sess.Status, "message": sess.Message, "next_actions": sess.NextActions})
 }
 
-func (s *Server) handleRuntimeListExecutions(w http.ResponseWriter, sessionID string) {
+func (s *Server) handleRuntimeListExecutions(w http.ResponseWriter, r *http.Request, sessionID string) {
 	sess, err := s.runtimeStore.GetSession(sessionID)
 	if err != nil {
 		writeAPI(w, http.StatusNotFound, false, statusCodeToErr(http.StatusNotFound), "", err.Error(), nil)
 		return
 	}
-	items, err := s.runtimeStore.ListExecutions(sessionID)
+	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	if r.URL.Query().Has("limit") && err != nil {
+		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", "invalid limit", nil)
+		return
+	}
+	offset, err := strconv.Atoi(r.URL.Query().Get("offset"))
+	if r.URL.Query().Has("offset") && err != nil {
+		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", "invalid offset", nil)
+		return
+	}
+	if limit < 0 || offset < 0 {
+		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", "limit/offset must be >= 0", nil)
+		return
+	}
+	items, total, err := s.runtimeStore.ListExecutions(sessionID, r.URL.Query().Get("status"), r.URL.Query().Get("todo_id"), limit, offset)
 	if err != nil {
 		writeRuntimeError(w, err)
 		return
 	}
-	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"session_id": sessionID, "status": sess.Status, "items": items})
+	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"session_id": sessionID, "status": sess.Status, "items": items, "total": total})
 }
 
 func (s *Server) handleRuntimeGetExecution(w http.ResponseWriter, sessionID, executionID string) {
