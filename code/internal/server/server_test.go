@@ -17,6 +17,10 @@ import (
 )
 
 func newTestServer(t *testing.T, apiKey string, operatorTokens string) *Server {
+	return newTestServerWithRuntimeStore(t, apiKey, operatorTokens, nil, "")
+}
+
+func newTestServerWithRuntimeStore(t *testing.T, apiKey string, operatorTokens string, runtimeStore store.RuntimeStore, runtimeDriver string) *Server {
 	t.Helper()
 
 	adapterRegistry := adapters.NewRegistry()
@@ -53,6 +57,9 @@ func newTestServer(t *testing.T, apiKey string, operatorTokens string) *Server {
 		operatorTokens,
 	)
 	AttachAdapterRuntime(srv, adapterRegistry, adapters.NewCredentialStore())
+	if runtimeStore != nil {
+		AttachRuntimeStore(srv, runtimeStore, runtimeDriver)
+	}
 	return srv
 }
 
