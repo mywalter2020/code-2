@@ -15,6 +15,7 @@ type Server struct {
 	orc             *orchestrator.Orchestrator
 	rg              *registry.Registry
 	runtimeStore    store.RuntimeStore
+	runtimeSvc      *runtimeService
 	abilityMetadata []types.AbilityMetadata
 	masterMetadata  []types.MasterAgentMetadata
 	bindingViews    []types.BindingView
@@ -35,6 +36,7 @@ func New(orc *orchestrator.Orchestrator, rg *registry.Registry, abilityMetadata 
 		orc:             orc,
 		rg:              rg,
 		runtimeStore:    store.NewRuntimeMemoryStore(),
+		runtimeSvc:      newRuntimeService(rg, bindingViews),
 		runtimeDriver:   "memory",
 		abilityMetadata: abilityMetadata,
 		masterMetadata:  masterMetadata,

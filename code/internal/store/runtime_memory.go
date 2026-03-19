@@ -106,6 +106,26 @@ func (s *RuntimeMemoryStore) GetSession(sessionID string) (*types.RuntimeSession
 	return cloneRuntimeSession(sess), nil
 }
 
+func (s *RuntimeMemoryStore) UpdatePrd(sessionID string, patch map[string]any) (*types.RuntimeSession, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sess, err := s.mustSessionLocked(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if sess.Status != types.SessionStatusWaitingPrdConfirm {
+		return nil, invalidStagef("update prd requires waiting_prd_confirm, got %s", sess.Status)
+	}
+	if sess.PRD == nil {
+		sess.PRD = &types.RuntimePRD{Version: 1}
+	}
+	applyPRDPatch(sess.PRD, patch)
+	sess.Message = "PRD 已生成，请确认后进入 Todo 阶段"
+	sess.NextActions = []string{"confirm_prd", "edit_prd", "cancel"}
+	sess.UpdatedAt = time.Now()
+	return cloneRuntimeSession(sess), nil
+}
+
 func (s *RuntimeMemoryStore) EditPrd(sessionID string, patch map[string]any, comment string) (*types.RuntimeSession, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -117,18 +137,10 @@ func (s *RuntimeMemoryStore) EditPrd(sessionID string, patch map[string]any, com
 		return nil, invalidStagef("edit prd requires waiting_prd_confirm, got %s", sess.Status)
 	}
 	if sess.PRD == nil {
-		sess.PRD = &types.RuntimePRD{}
+		sess.PRD = &types.RuntimePRD{Version: 1}
 	}
 	sess.PRD.Version++
-	if v, ok := patch["title"].(string); ok && v != "" {
-		sess.PRD.Title = v
-	}
-	if v, ok := patch["background"].(string); ok && v != "" {
-		sess.PRD.Background = v
-	}
-	if v, ok := patch["markdown"].(string); ok && v != "" {
-		sess.PRD.Markdown = v
-	}
+	applyPRDPatch(sess.PRD, patch)
 	sess.Message = "PRD 已更新，等待确认"
 	sess.NextActions = []string{"confirm_prd", "edit_prd", "cancel"}
 	sess.UpdatedAt = time.Now()
@@ -171,6 +183,27 @@ func (s *RuntimeMemoryStore) GetTodo(sessionID string) (*types.RuntimeTodoArtifa
 		return nil, fmt.Errorf("todo not found for session: %s", sessionID)
 	}
 	return cloneRuntimeTodo(sess.Todo), nil
+}
+
+func (s *RuntimeMemoryStore) UpdateTodo(sessionID string, items []types.RuntimeTodoItem) (*types.RuntimeSession, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sess, err := s.mustSessionLocked(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if sess.Status != types.SessionStatusWaitingTodo {
+		return nil, invalidStagef("update todo requires waiting_todo_confirm, got %s", sess.Status)
+	}
+	version := 1
+	if sess.Todo != nil && sess.Todo.Version > 0 {
+		version = sess.Todo.Version
+	}
+	sess.Todo = &types.RuntimeTodoArtifact{Version: version, Items: append([]types.RuntimeTodoItem{}, items...)}
+	sess.Message = "Todo 已生成，请确认后开始执行"
+	sess.NextActions = []string{"confirm_todo", "edit_todo", "cancel"}
+	sess.UpdatedAt = time.Now()
+	return cloneRuntimeSession(sess), nil
 }
 
 func (s *RuntimeMemoryStore) EditTodo(sessionID string, items []types.RuntimeTodoItem, comment string) (*types.RuntimeSession, error) {
@@ -415,6 +448,21 @@ func (s *RuntimeMemoryStore) ListLogs(sessionID, executionID, todoID, level stri
 	return append([]types.RuntimeLogEntry{}, filtered[offset:end]...), total, nil
 }
 
+func (s *RuntimeMemoryStore) UpdatePreview(sessionID string, preview map[string]any) (*types.RuntimeSession, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sess, err := s.mustSessionLocked(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	sess.Preview = map[string]any{}
+	for k, v := range preview {
+		sess.Preview[k] = v
+	}
+	sess.UpdatedAt = time.Now()
+	return cloneRuntimeSession(sess), nil
+}
+
 func (s *RuntimeMemoryStore) GetPreview(sessionID string) (map[string]any, *types.RuntimeSession, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -497,6 +545,18 @@ func cloneRuntimeTodo(in *types.RuntimeTodoArtifact) *types.RuntimeTodoArtifact 
 	}
 	items := append([]types.RuntimeTodoItem{}, in.Items...)
 	return &types.RuntimeTodoArtifact{Version: in.Version, Items: items}
+}
+
+func applyPRDPatch(prd *types.RuntimePRD, patch map[string]any) {
+	if v, ok := patch["title"].(string); ok && v != "" {
+		prd.Title = v
+	}
+	if v, ok := patch["background"].(string); ok && v != "" {
+		prd.Background = v
+	}
+	if v, ok := patch["markdown"].(string); ok && v != "" {
+		prd.Markdown = v
+	}
 }
 
 func summaryForExecution(status types.ExecutionStatus) string {

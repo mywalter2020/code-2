@@ -59,6 +59,11 @@ func (s *Server) handleRuntimeSessions(w http.ResponseWriter, r *http.Request) {
 		writeAPI(w, http.StatusInternalServerError, false, statusCodeToErr(http.StatusInternalServerError), "", err.Error(), nil)
 		return
 	}
+	if patch := s.runtimeSvc.enrichPRD(r.Context(), sess); len(patch) > 0 {
+		if enriched, err := s.runtimeStore.UpdatePrd(sess.SessionID, patch); err == nil {
+			sess = enriched
+		}
+	}
 	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{
 		"session_id":   sess.SessionID,
 		"stage":        sess.CurrentStage,
@@ -193,6 +198,11 @@ func (s *Server) handleRuntimeConfirmPrd(w http.ResponseWriter, r *http.Request,
 		writeRuntimeError(w, err)
 		return
 	}
+	if items := s.runtimeSvc.planTodo(sess); len(items) > 0 {
+		if updated, err := s.runtimeStore.UpdateTodo(sessionID, items); err == nil {
+			sess = updated
+		}
+	}
 	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"session_id": sessionID, "stage": sess.CurrentStage, "status": sess.Status, "message": sess.Message, "artifacts": map[string]any{"todo": sess.Todo}, "next_actions": sess.NextActions})
 }
 
@@ -229,6 +239,11 @@ func (s *Server) handleRuntimeConfirmTodo(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		writeRuntimeError(w, err)
 		return
+	}
+	if preview := s.runtimeSvc.buildPreview(r.Context(), sess); len(preview) > 0 {
+		if updated, err := s.runtimeStore.UpdatePreview(sessionID, preview); err == nil {
+			sess = updated
+		}
 	}
 	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"session_id": sessionID, "stage": sess.CurrentStage, "status": sess.Status, "message": sess.Message, "next_actions": sess.NextActions})
 }

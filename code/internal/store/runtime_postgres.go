@@ -195,6 +195,18 @@ func (s *RuntimePostgresStore) GetSession(sessionID string) (*types.RuntimeSessi
 	return s.rebuildSession(sessionID)
 }
 
+func (s *RuntimePostgresStore) UpdatePrd(sessionID string, patch map[string]any) (*types.RuntimeSession, error) {
+	mem, err := s.loadMemoryFromDB(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	sess, err := mem.UpdatePrd(sessionID, patch)
+	if err != nil {
+		return nil, err
+	}
+	return sess, s.persistFromMemory(mem, sessionID)
+}
+
 func (s *RuntimePostgresStore) EditPrd(sessionID string, patch map[string]any, comment string) (*types.RuntimeSession, error) {
 	mem, err := s.loadMemoryFromDB(sessionID)
 	if err != nil {
@@ -228,6 +240,18 @@ func (s *RuntimePostgresStore) GetTodo(sessionID string) (*types.RuntimeTodoArti
 		return nil, fmt.Errorf("todo not found for session: %s", sessionID)
 	}
 	return cloneRuntimeTodo(sess.Todo), nil
+}
+
+func (s *RuntimePostgresStore) UpdateTodo(sessionID string, items []types.RuntimeTodoItem) (*types.RuntimeSession, error) {
+	mem, err := s.loadMemoryFromDB(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	sess, err := mem.UpdateTodo(sessionID, items)
+	if err != nil {
+		return nil, err
+	}
+	return sess, s.persistFromMemory(mem, sessionID)
 }
 
 func (s *RuntimePostgresStore) EditTodo(sessionID string, items []types.RuntimeTodoItem, comment string) (*types.RuntimeSession, error) {
@@ -374,6 +398,23 @@ func (s *RuntimePostgresStore) ListLogs(sessionID, executionID, todoID, level st
 		end = total
 	}
 	return append([]types.RuntimeLogEntry{}, items[offset:end]...), total, nil
+}
+
+func (s *RuntimePostgresStore) UpdatePreview(sessionID string, preview map[string]any) (*types.RuntimeSession, error) {
+	mem, err := s.loadMemoryFromDB(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	sess, err := mem.GetSession(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	sess.Preview = map[string]any{}
+	for k, v := range preview {
+		sess.Preview[k] = v
+	}
+	mem.sessions[sessionID] = cloneRuntimeSession(sess)
+	return sess, s.persistFromMemory(mem, sessionID)
 }
 
 func (s *RuntimePostgresStore) GetPreview(sessionID string) (map[string]any, *types.RuntimeSession, error) {
