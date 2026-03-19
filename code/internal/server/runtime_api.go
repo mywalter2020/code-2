@@ -306,7 +306,7 @@ func writeRuntimeError(w http.ResponseWriter, err error) {
 		writeAPI(w, http.StatusConflict, false, statusCodeToErr(http.StatusConflict), "", err.Error(), nil)
 		return
 	}
-	writeRuntimeError(w, err)
+	writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
 }
 
 func decodeJSONBody(r *http.Request, dst any) error {
