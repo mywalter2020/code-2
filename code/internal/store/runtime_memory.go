@@ -113,6 +113,9 @@ func (s *RuntimeMemoryStore) EditPrd(sessionID string, patch map[string]any, com
 	if err != nil {
 		return nil, err
 	}
+	if sess.Status != types.SessionStatusWaitingPrdConfirm {
+		return nil, invalidStagef("edit prd requires waiting_prd_confirm, got %s", sess.Status)
+	}
 	if sess.PRD == nil {
 		sess.PRD = &types.RuntimePRD{}
 	}
@@ -139,6 +142,9 @@ func (s *RuntimeMemoryStore) ConfirmPrd(sessionID string, comment string) (*type
 	sess, err := s.mustSessionLocked(sessionID)
 	if err != nil {
 		return nil, err
+	}
+	if sess.Status != types.SessionStatusWaitingPrdConfirm {
+		return nil, invalidStagef("confirm prd requires waiting_prd_confirm, got %s", sess.Status)
 	}
 	todo := &types.RuntimeTodoArtifact{Version: 1, Items: []types.RuntimeTodoItem{
 		{ID: "todo_1", Title: "生成产品标题", Type: "title_generation", Status: types.TodoStatusPending, ParallelGroup: "content_assets"},
@@ -174,6 +180,9 @@ func (s *RuntimeMemoryStore) EditTodo(sessionID string, items []types.RuntimeTod
 	if err != nil {
 		return nil, err
 	}
+	if sess.Status != types.SessionStatusWaitingTodo {
+		return nil, invalidStagef("edit todo requires waiting_todo_confirm, got %s", sess.Status)
+	}
 	version := 1
 	if sess.Todo != nil && sess.Todo.Version > 0 {
 		version = sess.Todo.Version + 1
@@ -192,6 +201,9 @@ func (s *RuntimeMemoryStore) ConfirmTodo(sessionID string, comment string) (*typ
 	sess, err := s.mustSessionLocked(sessionID)
 	if err != nil {
 		return nil, err
+	}
+	if sess.Status != types.SessionStatusWaitingTodo {
+		return nil, invalidStagef("confirm todo requires waiting_todo_confirm, got %s", sess.Status)
 	}
 	if sess.Todo == nil {
 		return nil, fmt.Errorf("todo not found for session: %s", sessionID)
@@ -312,6 +324,9 @@ func (s *RuntimeMemoryStore) RetryExecutions(sessionID string, req types.RetryEx
 	sess, err := s.mustSessionLocked(sessionID)
 	if err != nil {
 		return nil, nil, err
+	}
+	if sess.Status != types.SessionStatusExecuting {
+		return nil, nil, invalidStagef("retry executions requires executing, got %s", sess.Status)
 	}
 	results := make([]types.RetryResultItem, 0, len(req.Items))
 	for _, item := range req.Items {

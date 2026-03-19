@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"juyu-ai-platform/internal/store"
 	"juyu-ai-platform/internal/types"
 )
 
@@ -38,7 +39,7 @@ func (s *Server) handleRuntimeSessions(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&req); err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeRuntimeError(w, err)
 		return
 	}
 	sess, err := s.runtimeStore.CreateSession(req.Input)
@@ -158,12 +159,12 @@ func (s *Server) handleRuntimeGetPrd(w http.ResponseWriter, sessionID string) {
 func (s *Server) handleRuntimeEditPrd(w http.ResponseWriter, r *http.Request, sessionID string) {
 	var req types.EditPrdRequest
 	if err := decodeJSONBody(r, &req); err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeRuntimeError(w, err)
 		return
 	}
 	sess, err := s.runtimeStore.EditPrd(sessionID, req.Patch, req.Comment)
 	if err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeRuntimeError(w, err)
 		return
 	}
 	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"session_id": sessionID, "stage": sess.CurrentStage, "status": sess.Status, "message": sess.Message, "artifacts": map[string]any{"prd": sess.PRD}, "next_actions": sess.NextActions})
@@ -172,12 +173,12 @@ func (s *Server) handleRuntimeEditPrd(w http.ResponseWriter, r *http.Request, se
 func (s *Server) handleRuntimeConfirmPrd(w http.ResponseWriter, r *http.Request, sessionID string) {
 	var req types.ConfirmPrdRequest
 	if err := decodeJSONBody(r, &req); err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeRuntimeError(w, err)
 		return
 	}
 	sess, err := s.runtimeStore.ConfirmPrd(sessionID, req.Comment)
 	if err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeRuntimeError(w, err)
 		return
 	}
 	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"session_id": sessionID, "stage": sess.CurrentStage, "status": sess.Status, "message": sess.Message, "artifacts": map[string]any{"todo": sess.Todo}, "next_actions": sess.NextActions})
@@ -195,12 +196,12 @@ func (s *Server) handleRuntimeGetTodo(w http.ResponseWriter, sessionID string) {
 func (s *Server) handleRuntimeEditTodo(w http.ResponseWriter, r *http.Request, sessionID string) {
 	var req types.EditTodoRequest
 	if err := decodeJSONBody(r, &req); err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeRuntimeError(w, err)
 		return
 	}
 	sess, err := s.runtimeStore.EditTodo(sessionID, req.Items, req.Comment)
 	if err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeRuntimeError(w, err)
 		return
 	}
 	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"session_id": sessionID, "stage": sess.CurrentStage, "status": sess.Status, "message": sess.Message, "artifacts": map[string]any{"todo": sess.Todo}, "next_actions": sess.NextActions})
@@ -209,24 +210,28 @@ func (s *Server) handleRuntimeEditTodo(w http.ResponseWriter, r *http.Request, s
 func (s *Server) handleRuntimeConfirmTodo(w http.ResponseWriter, r *http.Request, sessionID string) {
 	var req types.ConfirmTodoRequest
 	if err := decodeJSONBody(r, &req); err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeRuntimeError(w, err)
 		return
 	}
 	sess, err := s.runtimeStore.ConfirmTodo(sessionID, req.Comment)
 	if err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeRuntimeError(w, err)
 		return
 	}
 	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"session_id": sessionID, "stage": sess.CurrentStage, "status": sess.Status, "message": sess.Message, "next_actions": sess.NextActions})
 }
 
 func (s *Server) handleRuntimeListExecutions(w http.ResponseWriter, sessionID string) {
-	items, err := s.runtimeStore.ListExecutions(sessionID)
+	sess, err := s.runtimeStore.GetSession(sessionID)
 	if err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeAPI(w, http.StatusNotFound, false, statusCodeToErr(http.StatusNotFound), "", err.Error(), nil)
 		return
 	}
-	sess, _ := s.runtimeStore.GetSession(sessionID)
+	items, err := s.runtimeStore.ListExecutions(sessionID)
+	if err != nil {
+		writeRuntimeError(w, err)
+		return
+	}
 	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"session_id": sessionID, "status": sess.Status, "items": items})
 }
 
@@ -247,23 +252,27 @@ func (s *Server) handleRuntimeGetExecution(w http.ResponseWriter, sessionID, exe
 func (s *Server) handleRuntimeRetryExecutions(w http.ResponseWriter, r *http.Request, sessionID string) {
 	var req types.RetryExecutionsRequest
 	if err := decodeJSONBody(r, &req); err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeRuntimeError(w, err)
 		return
 	}
 	items, sess, err := s.runtimeStore.RetryExecutions(sessionID, req)
 	if err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeRuntimeError(w, err)
 		return
 	}
 	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"session_id": sessionID, "status": sess.Status, "message": "retry scheduled", "items": items})
 }
 
 func (s *Server) handleRuntimeListLogs(w http.ResponseWriter, r *http.Request, sessionID, executionID string) {
+	if _, err := s.runtimeStore.GetSession(sessionID); err != nil {
+		writeAPI(w, http.StatusNotFound, false, statusCodeToErr(http.StatusNotFound), "", err.Error(), nil)
+		return
+	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	items, total, err := s.runtimeStore.ListLogs(sessionID, executionID, r.URL.Query().Get("todo_id"), r.URL.Query().Get("level"), limit, offset)
 	if err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeRuntimeError(w, err)
 		return
 	}
 	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"session_id": sessionID, "execution_id": executionID, "items": items, "total": total})
@@ -281,15 +290,23 @@ func (s *Server) handleRuntimeGetPreview(w http.ResponseWriter, sessionID string
 func (s *Server) handleRuntimeCancelSession(w http.ResponseWriter, r *http.Request, sessionID string) {
 	var req types.CancelSessionRequest
 	if err := decodeJSONBody(r, &req); err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeRuntimeError(w, err)
 		return
 	}
 	sess, err := s.runtimeStore.CancelSession(sessionID, req.Reason)
 	if err != nil {
-		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", err.Error(), nil)
+		writeRuntimeError(w, err)
 		return
 	}
 	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"session_id": sessionID, "status": sess.Status, "message": sess.Message})
+}
+
+func writeRuntimeError(w http.ResponseWriter, err error) {
+	if store.IsRuntimeInvalidStage(err) {
+		writeAPI(w, http.StatusConflict, false, statusCodeToErr(http.StatusConflict), "", err.Error(), nil)
+		return
+	}
+	writeRuntimeError(w, err)
 }
 
 func decodeJSONBody(r *http.Request, dst any) error {

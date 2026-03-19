@@ -12,6 +12,8 @@ func statusCodeToErr(status int) string {
 		return types.ErrCodeMethodNotAllowed
 	case 401:
 		return types.ErrCodeUnauthorized
+	case 409:
+		return types.ErrCodeConflict
 	default:
 		return types.ErrCodeInternal
 	}

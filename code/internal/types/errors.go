@@ -4,6 +4,7 @@ const (
 	ErrCodeBadRequest       = "BAD_REQUEST"
 	ErrCodeUnauthorized     = "UNAUTHORIZED"
 	ErrCodeNotFound         = "NOT_FOUND"
+	ErrCodeConflict         = "CONFLICT"
 	ErrCodeMethodNotAllowed = "METHOD_NOT_ALLOWED"
 	ErrCodeInternal         = "INTERNAL_ERROR"
 )
