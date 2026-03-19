@@ -54,21 +54,16 @@ func TestRuntimeExecutionNotFoundContracts(t *testing.T) {
 		}
 	})
 
-	t.Run("get missing execution logs currently returns empty 200", func(t *testing.T) {
+	t.Run("get missing execution logs returns 404", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions/"+sessionID+"/executions/exec_missing/logs?limit=10&offset=0", nil)
 		mux.ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
 		}
 		resp := decodeAPIResponse(t, rec)
-		data := resp.Data.(map[string]any)
-		if data["execution_id"] != "exec_missing" {
-			t.Fatalf("expected execution_id exec_missing, got %v", data["execution_id"])
-		}
-		items := data["items"].([]any)
-		if len(items) != 0 {
-			t.Fatalf("expected empty logs for missing execution id filter, got %d", len(items))
+		if resp.Code != types.ErrCodeNotFound {
+			t.Fatalf("expected NOT_FOUND code, got %v", resp.Code)
 		}
 	})
 }
@@ -91,18 +86,11 @@ func TestRuntimeQueryBoundaryContracts(t *testing.T) {
 		}
 	}
 
-	t.Run("list sessions non-numeric limit falls back to default", func(t *testing.T) {
+	t.Run("list sessions non-numeric limit returns 400", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions?limit=abc&offset=0", nil)
 		mux.ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
-		}
-		resp := decodeAPIResponse(t, rec)
-		items := resp.Data.(map[string]any)["items"].([]any)
-		if len(items) != 3 {
-			t.Fatalf("expected default list to include all 3 sessions, got %d", len(items))
-		}
+		assertBadRequest(t, rec)
 	})
 
 	t.Run("list sessions offset beyond total returns empty items", func(t *testing.T) {
@@ -150,18 +138,25 @@ func TestRuntimeQueryBoundaryContracts(t *testing.T) {
 		t.Fatalf("confirm todo failed: %d %s", confirmTodoRec.Code, confirmTodoRec.Body.String())
 	}
 
-	t.Run("session logs non-numeric limit falls back to default", func(t *testing.T) {
+	t.Run("session logs non-numeric limit returns 400", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions/"+execSessionID+"/logs?limit=abc&offset=0", nil)
 		mux.ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
-		}
-		resp := decodeAPIResponse(t, rec)
-		items := resp.Data.(map[string]any)["items"].([]any)
-		if len(items) == 0 {
-			t.Fatalf("expected logs with fallback limit")
-		}
+		assertBadRequest(t, rec)
+	})
+
+	t.Run("session logs negative offset returns 400", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions/"+execSessionID+"/logs?limit=10&offset=-1", nil)
+		mux.ServeHTTP(rec, req)
+		assertBadRequest(t, rec)
+	})
+
+	t.Run("list sessions negative limit returns 400", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions?limit=-1&offset=0", nil)
+		mux.ServeHTTP(rec, req)
+		assertBadRequest(t, rec)
 	})
 
 	t.Run("session logs offset beyond total returns empty items", func(t *testing.T) {

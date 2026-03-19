@@ -12,8 +12,20 @@ import (
 
 func (s *Server) handleRuntimeSessions(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+		limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+		if r.URL.Query().Has("limit") && err != nil {
+			writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", "invalid limit", nil)
+			return
+		}
+		offset, err := strconv.Atoi(r.URL.Query().Get("offset"))
+		if r.URL.Query().Has("offset") && err != nil {
+			writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", "invalid offset", nil)
+			return
+		}
+		if limit < 0 || offset < 0 {
+			writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", "limit/offset must be >= 0", nil)
+			return
+		}
 		items, total, err := s.runtimeStore.ListSessions(r.URL.Query().Get("status"), r.URL.Query().Get("type"), limit, offset)
 		if err != nil {
 			writeAPI(w, http.StatusInternalServerError, false, statusCodeToErr(http.StatusInternalServerError), "", err.Error(), nil)
@@ -268,8 +280,26 @@ func (s *Server) handleRuntimeListLogs(w http.ResponseWriter, r *http.Request, s
 		writeAPI(w, http.StatusNotFound, false, statusCodeToErr(http.StatusNotFound), "", err.Error(), nil)
 		return
 	}
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	if executionID != "" {
+		if _, err := s.runtimeStore.GetExecution(sessionID, executionID); err != nil {
+			writeAPI(w, http.StatusNotFound, false, statusCodeToErr(http.StatusNotFound), "", err.Error(), nil)
+			return
+		}
+	}
+	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	if r.URL.Query().Has("limit") && err != nil {
+		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", "invalid limit", nil)
+		return
+	}
+	offset, err := strconv.Atoi(r.URL.Query().Get("offset"))
+	if r.URL.Query().Has("offset") && err != nil {
+		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", "invalid offset", nil)
+		return
+	}
+	if limit < 0 || offset < 0 {
+		writeAPI(w, http.StatusBadRequest, false, statusCodeToErr(http.StatusBadRequest), "", "limit/offset must be >= 0", nil)
+		return
+	}
 	items, total, err := s.runtimeStore.ListLogs(sessionID, executionID, r.URL.Query().Get("todo_id"), r.URL.Query().Get("level"), limit, offset)
 	if err != nil {
 		writeRuntimeError(w, err)
