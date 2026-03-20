@@ -124,9 +124,17 @@ func (s *runtimeService) buildPreview(ctx context.Context, sess *types.RuntimeSe
 }
 
 func (s *runtimeService) pickBinding(sess *types.RuntimeSession) *types.BindingView {
-	for _, binding := range s.bindings {
-		if binding.MasterAgent == "product_ops" {
-			return &binding
+	scene := inferRuntimeScene(sess)
+	if scene != "" {
+		for i := range s.bindings {
+			if strings.EqualFold(strings.TrimSpace(s.bindings[i].SceneType), scene) {
+				return &s.bindings[i]
+			}
+		}
+	}
+	for i := range s.bindings {
+		if s.bindings[i].MasterAgent == "product_ops" {
+			return &s.bindings[i]
 		}
 	}
 	if len(s.bindings) > 0 {
@@ -139,12 +147,41 @@ func runtimeRequestFromSession(sess *types.RuntimeSession) types.Request {
 	payload := map[string]any{
 		"url":      sess.Input.URL,
 		"platform": nonEmptyString(sess.Input.Platform, "alibaba"),
+		"type":     sess.Input.Type,
 	}
 	return types.Request{
-		Scene:   "product",
+		Scene:   inferRuntimeScene(sess),
 		Input:   nonEmptyString(sess.Input.Message, sess.Input.URL),
 		Payload: payload,
 	}
+}
+
+func inferRuntimeScene(sess *types.RuntimeSession) string {
+	if sess == nil {
+		return "product"
+	}
+	inputType := strings.ToLower(strings.TrimSpace(sess.Input.Type))
+	switch {
+	case strings.Contains(inputType, "competition"), strings.Contains(inputType, "proposal"), strings.Contains(inputType, "ppt"):
+		return "competition"
+	case strings.Contains(inputType, "content"), strings.Contains(inputType, "publish"):
+		return "content"
+	case strings.Contains(inputType, "product"), strings.Contains(inputType, "preview"), strings.Contains(inputType, "title"), strings.Contains(inputType, "carousel"), strings.Contains(inputType, "video"), strings.Contains(inputType, "image"):
+		return "product"
+	}
+
+	message := strings.ToLower(strings.TrimSpace(sess.Input.Message))
+	switch {
+	case strings.Contains(message, "比赛"), strings.Contains(message, "方案"), strings.Contains(message, "ppt"), strings.Contains(message, "competition"), strings.Contains(message, "proposal"):
+		return "competition"
+	case strings.Contains(message, "发布"), strings.Contains(message, "分发"), strings.Contains(message, "种草"), strings.Contains(message, "content"), strings.Contains(message, "publish"):
+		return "content"
+	}
+
+	if strings.TrimSpace(sess.Input.URL) != "" {
+		return "product"
+	}
+	return "product"
 }
 
 func humanizeRuntimeTodoTitle(ability, invoke string) string {

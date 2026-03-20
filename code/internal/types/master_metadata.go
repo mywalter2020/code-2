@@ -9,6 +9,7 @@ type MasterAgentMetadata struct {
 
 type BindingView struct {
 	MasterAgent string         `json:"master_agent"`
+	SceneType   string         `json:"scene_type,omitempty"`
 	Abilities   []string       `json:"abilities,omitempty"`
 	Workflow    []WorkflowStep `json:"workflow,omitempty"`
 }

@@ -32,6 +32,7 @@ type Server struct {
 }
 
 func New(orc *orchestrator.Orchestrator, rg *registry.Registry, abilityMetadata []types.AbilityMetadata, masterMetadata []types.MasterAgentMetadata, bindingViews []types.BindingView, apiKey string, operatorTokens string) *Server {
+	bindingViews = enrichBindingViews(masterMetadata, bindingViews)
 	return &Server{
 		orc:             orc,
 		rg:              rg,
@@ -44,6 +45,24 @@ func New(orc *orchestrator.Orchestrator, rg *registry.Registry, abilityMetadata 
 		apiKey:          apiKey,
 		operatorAuth:    newOperatorAuth(operatorTokens),
 	}
+}
+
+func enrichBindingViews(masterMetadata []types.MasterAgentMetadata, bindingViews []types.BindingView) []types.BindingView {
+	if len(bindingViews) == 0 {
+		return bindingViews
+	}
+	sceneByMaster := make(map[string]string, len(masterMetadata))
+	for _, meta := range masterMetadata {
+		sceneByMaster[meta.Code] = meta.SceneType
+	}
+	result := make([]types.BindingView, 0, len(bindingViews))
+	for _, binding := range bindingViews {
+		if binding.SceneType == "" {
+			binding.SceneType = sceneByMaster[binding.MasterAgent]
+		}
+		result = append(result, binding)
+	}
+	return result
 }
 
 func (s *Server) Register(mux *http.ServeMux) {
