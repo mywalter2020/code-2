@@ -13,6 +13,22 @@ type runtimeService struct {
 	bindings []types.BindingView
 }
 
+type runtimeSceneRule struct {
+	InputType string
+	Scene     string
+}
+
+var runtimeSceneRules = []runtimeSceneRule{
+	{InputType: "product_url_learning", Scene: "product"},
+	{InputType: "title_generation", Scene: "product"},
+	{InputType: "feature_image_copy", Scene: "product"},
+	{InputType: "carousel_generation", Scene: "product"},
+	{InputType: "video_script_generation", Scene: "product"},
+	{InputType: "preview_payload_build", Scene: "product"},
+	{InputType: "content_publish_request", Scene: "content"},
+	{InputType: "competition_plan", Scene: "competition"},
+}
+
 type runtimeAgentRegistry interface {
 	Get(code string) (types.AbilityAgent, error)
 }
@@ -161,13 +177,10 @@ func inferRuntimeScene(sess *types.RuntimeSession) string {
 		return "product"
 	}
 	inputType := strings.ToLower(strings.TrimSpace(sess.Input.Type))
-	switch {
-	case strings.Contains(inputType, "competition"), strings.Contains(inputType, "proposal"), strings.Contains(inputType, "ppt"):
-		return "competition"
-	case strings.Contains(inputType, "content"), strings.Contains(inputType, "publish"):
-		return "content"
-	case strings.Contains(inputType, "product"), strings.Contains(inputType, "preview"), strings.Contains(inputType, "title"), strings.Contains(inputType, "carousel"), strings.Contains(inputType, "video"), strings.Contains(inputType, "image"):
-		return "product"
+	for _, rule := range runtimeSceneRules {
+		if inputType == rule.InputType {
+			return rule.Scene
+		}
 	}
 
 	message := strings.ToLower(strings.TrimSpace(sess.Input.Message))
