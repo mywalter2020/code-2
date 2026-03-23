@@ -38,7 +38,7 @@
 ## 接口
 
 ### `GET /healthz`
-健康检查（包含 auth/runtime 摘要）
+健康检查（包含 auth / runtime / adapters 运行态摘要）
 
 ### `GET /abilities`
 查看当前注册的小 Agent 能力列表
@@ -53,7 +53,7 @@
 查看主控 Agent 与能力 / workflow 绑定关系
 
 ### `GET /adapters/health`
-查看平台 adapter 健康状态（含 configured / dry_run / missing_fields / base_url_configured / live_ready）
+查看平台 adapter 健康状态（含 configured / dry_run / missing_fields / base_url_configured / live_ready），并返回聚合 summary（total / healthy / configured / live_ready / dry_run / misconfigured_live）
 
 ### `GET /adapters/descriptors`
 查看平台 adapter 描述信息（支持动作、必填凭据、当前模式）
@@ -68,7 +68,7 @@
 最小前端演示骨架，可直接创建任务、查看预览、确认继续
 
 ### `GET /admin/providers`
-查看当前 content/page provider 运行时配置
+查看当前 content/page provider 运行时配置，包含 requested_provider / effective_provider / live_ready / missing_requirements / fallback_active / fallback_reason
 
 ### `PUT /admin/providers`
 更新当前进程内的 content/page provider 配置（需写权限；凭据仍从环境变量读取）

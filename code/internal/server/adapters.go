@@ -9,10 +9,21 @@ import (
 )
 
 func (s *Server) handleAdapterHealth(w http.ResponseWriter, r *http.Request) {
+	writeAPI(w, http.StatusOK, true, "", "ok", "", adapterRuntimeInfo(s))
+}
+
+func adapterRuntimeInfo(s *Server) map[string]any {
 	items := make([]any, 0)
-	if s.adapterRegistry == nil {
-		writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"adapters": items})
-		return
+	summary := map[string]any{
+		"total":             0,
+		"healthy":           0,
+		"configured":        0,
+		"live_ready":        0,
+		"dry_run":           0,
+		"misconfigured_live": 0,
+	}
+	if s == nil || s.adapterRegistry == nil {
+		return map[string]any{"summary": summary, "adapters": items}
 	}
 	for _, name := range s.adapterRegistry.ListNames() {
 		adapterAny, err := s.adapterRegistry.Get(name)
@@ -23,14 +34,30 @@ func (s *Server) handleAdapterHealth(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			continue
 		}
+		summary["total"] = summary["total"].(int) + 1
 		health, err := adapter.Health(context.Background())
 		if err != nil {
-			items = append(items, map[string]any{"platform": name, "healthy": false, "message": err.Error()})
+			items = append(items, map[string]any{"platform": name, "healthy": false, "message": err.Error(), "live_ready": false})
 			continue
+		}
+		if health.Healthy {
+			summary["healthy"] = summary["healthy"].(int) + 1
+		}
+		if health.Configured {
+			summary["configured"] = summary["configured"].(int) + 1
+		}
+		if health.LiveReady {
+			summary["live_ready"] = summary["live_ready"].(int) + 1
+		}
+		if health.DryRun {
+			summary["dry_run"] = summary["dry_run"].(int) + 1
+		}
+		if !health.DryRun && !health.LiveReady {
+			summary["misconfigured_live"] = summary["misconfigured_live"].(int) + 1
 		}
 		items = append(items, health)
 	}
-	writeAPI(w, http.StatusOK, true, "", "ok", "", map[string]any{"adapters": items})
+	return map[string]any{"summary": summary, "adapters": items}
 }
 
 func (s *Server) handleAdapterCredentials(w http.ResponseWriter, r *http.Request) {

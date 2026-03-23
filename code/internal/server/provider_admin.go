@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"juyu-ai-platform/internal/config"
 	"juyu-ai-platform/internal/llm"
 )
 
@@ -27,31 +28,118 @@ type providerSection struct {
 func providerRuntimeInfo() map[string]any {
 	cfg := llm.LoadContentGenConfig()
 	pageCfg := llm.LoadPageGenConfig()
+	contentGen := llm.NewContentGeneratorFromEnv()
+	pageGen := llm.NewPageGeneratorFromEnv()
 	providers := []string{"stub", "nvidia", "openai_compat"}
+	contentObs := providerObservability("content_gen", cfg.Provider, cfg.Model, contentProviderRequirements(cfg.Provider), contentGen.ProviderName(), contentGen.Enabled())
+	pageObs := providerObservability("page_gen", pageCfg.Provider, pageCfg.Model, pageProviderRequirements(pageCfg.Provider), pageGen.ProviderName(), pageGen.Enabled())
 	return map[string]any{
 		"content_gen": map[string]any{
-			"provider":        cfg.Provider,
-			"enabled":         cfg.Enabled,
-			"model":           cfg.Model,
-			"temperature":     cfg.Temperature,
-			"max_tokens":      cfg.MaxTokens,
-			"system_prompt":   cfg.SystemPrompt,
-			"prompt_template": cfg.PromptTemplate,
+			"provider":            cfg.Provider,
+			"effective_provider":  contentObs["effective_provider"],
+			"enabled":             contentObs["enabled"],
+			"live_ready":          contentObs["live_ready"],
+			"requested_provider":  contentObs["requested_provider"],
+			"fallback_active":     contentObs["fallback_active"],
+			"fallback_reason":     contentObs["fallback_reason"],
+			"missing_requirements": contentObs["missing_requirements"],
+			"requirements":        contentObs["requirements"],
+			"model":              cfg.Model,
+			"temperature":        cfg.Temperature,
+			"max_tokens":         cfg.MaxTokens,
+			"system_prompt":      cfg.SystemPrompt,
+			"prompt_template":    cfg.PromptTemplate,
 		},
 		"page_gen": map[string]any{
-			"provider":        pageCfg.Provider,
-			"enabled":         pageCfg.Enabled,
-			"model":           pageCfg.Model,
-			"temperature":     pageCfg.Temperature,
-			"max_tokens":      pageCfg.MaxTokens,
-			"system_prompt":   pageCfg.SystemPrompt,
-			"prompt_template": pageCfg.PromptTemplate,
+			"provider":            pageCfg.Provider,
+			"effective_provider":  pageObs["effective_provider"],
+			"enabled":             pageObs["enabled"],
+			"live_ready":          pageObs["live_ready"],
+			"requested_provider":  pageObs["requested_provider"],
+			"fallback_active":     pageObs["fallback_active"],
+			"fallback_reason":     pageObs["fallback_reason"],
+			"missing_requirements": pageObs["missing_requirements"],
+			"requirements":        pageObs["requirements"],
+			"model":              pageCfg.Model,
+			"temperature":        pageCfg.Temperature,
+			"max_tokens":         pageCfg.MaxTokens,
+			"system_prompt":      pageCfg.SystemPrompt,
+			"prompt_template":    pageCfg.PromptTemplate,
 		},
 		"providers": providers,
 		"notes": map[string]any{
 			"nvidia_requires":        []string{"NVIDIA_URL", "NVIDIA_KEY"},
 			"openai_compat_requires": []string{"OPENAI_COMPAT_URL", "OPENAI_COMPAT_KEY", "OPENAI_COMPAT_MODEL or CONTENT_GEN_MODEL"},
 		},
+	}
+}
+
+func providerRequirements(provider string) []string {
+	switch strings.TrimSpace(provider) {
+	case "nvidia", "":
+		return []string{"NVIDIA_URL", "NVIDIA_KEY"}
+	case "openai_compat", "openai-compatible":
+		return []string{"OPENAI_COMPAT_URL", "OPENAI_COMPAT_KEY"}
+	default:
+		return nil
+	}
+}
+
+func contentProviderRequirements(provider string) []string {
+	reqs := providerRequirements(provider)
+	switch strings.TrimSpace(provider) {
+	case "nvidia", "", "openai_compat", "openai-compatible":
+		return append(reqs, "CONTENT_GEN_MODEL")
+	default:
+		return reqs
+	}
+}
+
+func pageProviderRequirements(provider string) []string {
+	reqs := providerRequirements(provider)
+	switch strings.TrimSpace(provider) {
+	case "nvidia", "openai_compat", "openai-compatible":
+		return append(reqs, "PAGE_GEN_MODEL")
+	default:
+		return reqs
+	}
+}
+
+func providerObservability(kind, requestedProvider, model string, requirements []string, effectiveProvider string, liveReady bool) map[string]any {
+	missing := make([]string, 0)
+	for _, key := range requirements {
+		if strings.TrimSpace(config.GetEnv(key, "")) == "" {
+			missing = append(missing, key)
+		}
+	}
+	fallbackActive := false
+	fallbackReason := ""
+	requested := strings.TrimSpace(requestedProvider)
+	effective := strings.TrimSpace(effectiveProvider)
+	if effective == "" {
+		effective = "stub"
+	}
+	if requested == "" {
+		requested = "stub"
+	}
+	if requested != effective {
+		fallbackActive = true
+		if len(missing) > 0 {
+			fallbackReason = kind + " provider fallback due to missing runtime requirements"
+		} else {
+			fallbackReason = kind + " provider fallback to " + effective
+		}
+	}
+	return map[string]any{
+		"requested_provider":   requested,
+		"effective_provider":   effective,
+		"enabled":              liveReady,
+		"live_ready":           liveReady,
+		"requirements":         requirements,
+		"missing_requirements": missing,
+		"fallback_active":      fallbackActive,
+		"fallback_reason":      fallbackReason,
+		"model":                model,
 	}
 }
 

@@ -72,6 +72,7 @@ JuYu 当前已经从“原型骨架”推进到“主链路可运行、Docker �
 - DashScope 真模型已接通
 - prompt template 已确认干净
 - 8080 主链路已实测跑通到 `success`
+- 观测面已增强，可区分 requested/effective provider、live_ready、fallback 与 adapter summary 状态
 
 ## 当前边界
 
@@ -84,9 +85,9 @@ JuYu 当前已经从“原型骨架”推进到“主链路可运行、Docker �
    - 目前使用 `.env`
    - 尚未迁移到更严格的 secrets 管理方案
 
-3. 观测面一致性
-   - healthz/runtime 中个别 `enabled` 字段与实际 provider 可用性口径不完全一致
-   - 不阻塞执行，但影响观测精度
+3. 观测面仍可继续增强
+   - 当前已补齐 provider live-ready / adapter live-ready / fallback 观测
+   - 仍可继续增加更细粒度的执行期诊断与告警视图
 
 ## 下一阶段建议
 

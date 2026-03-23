@@ -38,6 +38,8 @@ func LoadContentGenConfig() ContentGenConfig {
 	switch provider {
 	case "nvidia", "":
 		enabled = strings.TrimSpace(config.GetEnv("NVIDIA_URL", "")) != "" && strings.TrimSpace(config.GetEnv("NVIDIA_KEY", "")) != ""
+	case "openai_compat", "openai-compatible":
+		enabled = strings.TrimSpace(config.GetEnv("OPENAI_COMPAT_URL", "")) != "" && strings.TrimSpace(config.GetEnv("OPENAI_COMPAT_KEY", "")) != "" && strings.TrimSpace(model) != ""
 	case "stub", "mock":
 		enabled = false
 	}
