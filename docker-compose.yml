@@ -22,6 +22,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       JUYU_CONFIG: /app/configs/agents.yaml
       JUYU_STORE: postgres
@@ -80,13 +82,11 @@ services:
       CONTENT_GEN_TEMPERATURE: ${CONTENT_GEN_TEMPERATURE:-0.4}
       CONTENT_GEN_MAX_TOKENS: ${CONTENT_GEN_MAX_TOKENS:-220}
       CONTENT_GEN_SYSTEM_PROMPT: ${CONTENT_GEN_SYSTEM_PROMPT:-你擅长生成电商商品发布文案，输出准确、简洁、可直接使用。}
-      CONTENT_GEN_PROMPT_TEMPLATE: ${CONTENT_GEN_PROMPT_TEMPLATE:-你是电商运营文案助手。请为以下商品生成一段简洁但可直接用于发布页的中文商品文案，控制在120字内。输出纯文本，不要加标题。商品标题：{{title}}。商品描述：{{description}}。目标平台：{{platform}}。}
       PAGE_GEN_PROVIDER: ${PAGE_GEN_PROVIDER:-stub}
       PAGE_GEN_MODEL: ${PAGE_GEN_MODEL:-meta/llama-3.1-405b-instruct}
       PAGE_GEN_TEMPERATURE: ${PAGE_GEN_TEMPERATURE:-0.3}
       PAGE_GEN_MAX_TOKENS: ${PAGE_GEN_MAX_TOKENS:-260}
       PAGE_GEN_SYSTEM_PROMPT: ${PAGE_GEN_SYSTEM_PROMPT:-你擅长生成电商商品页面结构，输出 JSON，字段必须稳定。}
-      PAGE_GEN_PROMPT_TEMPLATE: ${PAGE_GEN_PROMPT_TEMPLATE:-请基于以下商品信息生成一个 JSON 页面草图。字段必须包含 title 和 sections，sections 为字符串数组。不要输出 markdown，不要输出解释。商品标题：{{title}}。商品描述：{{description}}。目标平台：{{platform}}。}
     ports:
       - "8080:8080"
     healthcheck:
