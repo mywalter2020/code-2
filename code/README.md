@@ -158,9 +158,18 @@ JUYU_CONFIG=/root/.openclaw/workspace/configs/agents.yaml \
 使用 Docker Compose 一键运行：
 
 ```bash
+cp ../.env.example ../.env
+# 按需填写 .env 中的 JUYU_API_KEY / OPENAI_COMPAT_* / adapter 凭据
+
 docker compose up --build -d
 curl http://127.0.0.1:8080/healthz
 ```
+
+密钥管理约定：
+
+- `.env.example`：入库，作为模板
+- `.env`：本地运行时真实配置，不入库
+- prompt template 通过 `env_file: .env` 原样注入，避免 Docker Compose 对 `{{description}}` / `{{platform}}` 这类模板片段做变量插值污染
 
 启用写操作 API Key（可选）：
 
@@ -239,6 +248,37 @@ export PAGE_GEN_PROMPT_TEMPLATE='请基于以下商品信息生成一个 JSON �
 - `GET /adapters/health` 会显示缺哪些字段
 - dry-run=true 时仍可走通演示链路
 - dry-run=false 时写动作会因缺凭据而失败
+
+## 当前完成态（2026-03）
+
+已完成：
+- Go 服务主链路可运行，`go test ./...` 通过
+- 8080 Docker 实例已对齐当前代码
+- `content_gen` / `page_gen` 已切到 `openai_compat`
+- DashScope coding endpoint (`qwen3-coder-plus`) 已实测跑通
+- 写接口 API Key 已启用
+- `/admin/providers` / `/execute` / `/tasks/{id}/confirm` 已验证可用
+- `publish_exec` / `onshelf_exec` 在 `dry_run=true` 下已验证闭环
+- `.env` / `.env.example` 已分离，Compose prompt 注入污染问题已修复
+
+当前边界：
+- 真实平台 adapter 仍未接入 live 凭据
+- `JUYU_ADAPTER_DRY_RUN=true`，因此当前证明的是“系统链路通”，不是“真实平台已可生产发布”
+- healthz/runtime 中个别 `enabled` 字段与实际 provider 可用性口径不完全一致，属于观测面问题，不阻塞执行链路
+
+## 下一阶段待办
+
+1. 单平台 live 接入（建议先 Alibaba 或 Taobao）
+   - 补齐真实凭据
+   - 校准 method/path/base_url
+   - 切 `JUYU_ADAPTER_DRY_RUN=false`
+   - 跑最小 publish / on_shelf live 验证
+2. 密钥治理升级
+   - 将生产密钥从 `.env` 迁到更稳妥的 secrets 管理方式
+   - 视需要开启 `JUYU_OPERATOR_TOKENS`
+3. 观测面修正
+   - 校正 healthz/runtime 中 `enabled` 状态表达
+   - 增加 provider / adapter live-ready 诊断信息
 
 ## 测试
 

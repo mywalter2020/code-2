@@ -2,6 +2,11 @@
 .local/
 .openclaw/
 
+# secrets / env
+.env
+.env.*
+!.env.example
+
 # binaries
 code/platform
 bin/
