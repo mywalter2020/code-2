@@ -109,7 +109,7 @@ func main() {
 	mux := http.NewServeMux()
 	api.Register(mux)
 
-	addr := ":8080"
+	addr := config.GetEnv("JUYU_ADDR", ":8080")
 	httpServer := &http.Server{
 		Addr:              addr,
 		Handler:           mux,
